@@ -12,56 +12,6 @@ from selenium.webdriver.common.action_chains import ActionChains
 from sklearn.linear_model import LinearRegression
 import pickle
 
-def retrieve_historical_vorp(year):
-
-    # Creating team map to change team names
-    team_map = {
-        'TOR' : 'Toronto Raptors',
-        'MEM' : 'Memphis Grizzlies',
-        'MIA' : 'Miami Heat',
-        'BRK' : 'Brooklyn Nets',
-        'NOP' : 'New Orleans Pelicans',
-        'MIL' : 'Milwaukee Bucks',
-        'CLE' : 'Cleveland Cavaliers',
-        'LAL' : 'Los Angeles Lakers',
-        'ORL' : 'Orlando Magic',
-        'HOU' : 'Houston Rockets',
-        'WAS' : 'Washington Wizards',
-        'PHO' : 'Phoenix Suns',
-        'UTA' : 'Utah Jazz',
-        'SAC' : 'Sacramento Kings',
-        'CHO' : 'Charlotte Hornets',
-        'CHI' : 'Chicago Bulls',
-        'ATL' : 'Atlanta Hawks',
-        'NYK' : 'New York Knicks',
-        'DEN' : 'Denver Nuggets',
-        'PHI' : 'Philadelphia 76ers',
-        'SAS' : 'Sacramento Kings',
-        'LAC' : 'Los Angeles Clippers',
-        'OKC' : 'Oklahoma City Thunder',
-        'MIN' : 'Minnesota Timberwolves',
-        'DET' : 'Detroit Pistons',
-        'IND' : 'Indiana Pacers',
-        'GSW' : 'Golden State Warriors',
-        'POR' : 'Portland Trailblazers',
-        'DAL' : 'Dallas Mavericks',
-        'TOT' : 'Toronto Raptors',
-        'BOS' : 'Boston Celtics'
-    }
-
-    # Retrieving cumulative VORP for each team for the specified year
-    tables = pd.read_html(f'https://www.basketball-reference.com/leagues/NBA_{str(year)}_advanced.html')
-    table = tables[0]
-    table = table[['Player', 'Tm', 'VORP']]
-    table.columns = ['Player', 'Team', 'VORP']
-    table = table[table.Team != 'Tm']
-    table.Team.unique()
-    table['Team'] = table.Team.apply(lambda x: team_map[x])
-    table['VORP'] = table.VORP.apply(pd.to_numeric)
-    team_vorp = table.groupby('Team')['VORP'].sum()
-    
-    return team_vorp
-
 def calculate_win_pct_equation(save = False):
     
     # Scrape data on historical points scored
@@ -115,7 +65,7 @@ def calculate_win_pct_equation(save = False):
     y = merged.Win_Pct
     model = LinearRegression()
     model.fit(x,y)
-    r_squared = model.score(x,y)
+    # r_squared = model.score(x,y)
     # print('The y-intercept is: ', model.intercept_)
     # print('The slope is: ', model.coef_)
     # print('The r-squared is: ', r_squared)
@@ -126,5 +76,120 @@ def calculate_win_pct_equation(save = False):
         with open(file_name, 'wb') as f:
             pickle.dump(model, f)
     
+    return merged, model
+
+def calculate_vorp_equation(merged, save = False):
+
+    # Creating team maps to change team names in order to create a matching column
+    team_map = {
+        'TOR' : 'Toronto Raptors',
+        'MEM' : 'Memphis Grizzlies',
+        'MIA' : 'Miami Heat',
+        'BRK' : 'Brooklyn Nets',
+        'NOP' : 'New Orleans Pelicans',
+        'NOH' : 'New Orleans Hornets',
+        'MIL' : 'Milwaukee Bucks',
+        'CLE' : 'Cleveland Cavaliers',
+        'LAL' : 'Los Angeles Lakers',
+        'ORL' : 'Orlando Magic',
+        'HOU' : 'Houston Rockets',
+        'WAS' : 'Washington Wizards',
+        'PHO' : 'Phoenix Suns',
+        'UTA' : 'Utah Jazz',
+        'SAC' : 'Sacramento Kings',
+        'CHO' : 'Charlotte Hornets',
+        'CHA' : 'Charlotte Hornets',
+        'CHI' : 'Chicago Bulls',
+        'ATL' : 'Atlanta Hawks',
+        'NYK' : 'New York Knicks',
+        'DEN' : 'Denver Nuggets',
+        'PHI' : 'Philadelphia 76ers',
+        'SAS' : 'San Antonio Spurs',
+        'LAC' : 'Los Angeles Clippers',
+        'OKC' : 'Oklahoma City Thunder',
+        'MIN' : 'Minnesota Timberwolves',
+        'DET' : 'Detroit Pistons',
+        'IND' : 'Indiana Pacers',
+        'GSW' : 'Golden State Warriors',
+        'POR' : 'Portland Trailblazers',
+        'DAL' : 'Dallas Mavericks',
+        'TOT' : 'Toronto Raptors',
+        'BOS' : 'Boston Celtics'
+    }
+
+    team_map_differential = {
+    'Milwaukee' : 'Milwaukee Bucks',
+    'Golden State' : 'Golden State Warriors',
+    'New Orleans' : 'New Orleans Pelicans',
+    'LA Clippers' : 'Los Angeles Clippers',
+    'Philadelphia' : 'Philadelphia 76ers',
+    'Sacramento' : 'Sacramento Kings',
+    'Washington' : 'Washington Wizards',
+    'Okla City' : 'Oklahoma City Thunder',
+    'Portland' : 'Portland Trailblazers',
+    'Atlanta' : 'Atlanta Hawks',
+    'Houston' : 'Houston Rockets',
+    'Toronto' : 'Toronto Raptors',
+    'Minnesota' : 'Minnesota Timberwolves',
+    'Brooklyn' : 'Brooklyn Nets',
+    'LA Lakers' : 'Los Angeles Lakers',
+    'Boston' : 'Boston Celtics',
+    'San Antonio' : 'San Antonio Spurs',
+    'Utah' : 'Utah Jazz',
+    'Charlotte' : 'Charlotte Hornets',
+    'Denver' : 'Denver Nuggets',
+    'Dallas' : 'Dallas Mavericks',
+    'Phoenix' : 'Phoenix Suns',
+    'Indiana' : 'Indiana Pacers',
+    'Detroit' : 'Detroit Pistons',
+    'Orlando' : 'Orlando Magic',
+    'Miami' : 'Miami Heat',
+    'Chicago' : 'Chicago Bulls',
+    'New York' : 'New York Knicks',
+    'Cleveland' : 'Cleveland Cavaliers',
+    'Memphis' : 'Memphis Grizzlies'
+    }
+
+    # Retrieving cumulative VORP for each team over the relevant timeframe
+    years = [2019, 2018, 2017, 2016, 2015, 2014, 2013]
+    vorp_table = pd.DataFrame(columns = ['Team', 'VORP', 'Year'])
+    for year in years:
+        tables = pd.read_html(f'https://www.basketball-reference.com/leagues/NBA_{str(year)}_advanced.html')
+        table = tables[0]
+        table = table[['Player', 'Tm', 'VORP']]
+        table.columns = ['Player', 'Team', 'VORP']
+        table = table[table.Team != 'Tm']
+        table.Team.unique()
+        table['Team'] = table.Team.apply(lambda x: team_map[x])
+        table['VORP'] = table.VORP.apply(pd.to_numeric)
+        team_vorp = table.groupby('Team')['VORP'].sum()
+        team_vorp = pd.DataFrame(team_vorp)
+        team_vorp.reset_index(drop = False, inplace = True)
+        team_vorp.columns = ['Team', 'VORP']
+        team_vorp['Year'] = year
+        vorp_table = vorp_table.append(team_vorp)
+    
+
+    # Merging point differential and VORP tables
+    merged['Team'] = merged.Team.apply(lambda x: team_map_differential[x])
+    merged_all = pd.merge(vorp_table, merged, on = ['Team', 'Year'], how = 'inner')
+    merged_all = merged_all[['Team', 'Year', 'VORP', 'Point_Differential']]
+    
+    # Performing linear regression on VORP and win_pct
+    x = merged_all[['VORP']]
+    y = merged_all.Point_Differential
+    model = LinearRegression()
+    model.fit(x,y)
+    # r_squared = model.score(x,y)
+    # print('The y-intercept is: ', model.intercept_)
+    # print('The slope is: ', model.coef_)
+    # print('The r-squared is: ', r_squared)
+
+    # Saving model to data folder
+    if save:
+        file_name = 'Model_Build/Data/vorp_regression.pickle'
+        with open(file_name, 'wb') as f:
+            pickle.dump(model, f)
+
     return model
 
