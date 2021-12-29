@@ -9,10 +9,12 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support.ui import Select
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.action_chains import ActionChains
+from sklearn.linear_model import LinearRegression
+import pickle
 
 def retrieve_historical_vorp(year):
 
-
+    # Creating team map to change team names
     team_map = {
         'TOR' : 'Toronto Raptors',
         'MEM' : 'Memphis Grizzlies',
@@ -47,6 +49,7 @@ def retrieve_historical_vorp(year):
         'BOS' : 'Boston Celtics'
     }
 
+    # Retrieving cumulative VORP for each team for the specified year
     tables = pd.read_html(f'https://www.basketball-reference.com/leagues/NBA_{str(year)}_advanced.html')
     table = tables[0]
     table = table[['Player', 'Tm', 'VORP']]
@@ -58,3 +61,70 @@ def retrieve_historical_vorp(year):
     team_vorp = table.groupby('Team')['VORP'].sum()
     
     return team_vorp
+
+def calculate_win_pct_equation(save = False):
+    
+    # Scrape data on historical points scored
+    years = [2019, 2018, 2017, 2016, 2015, 2014, 2013]
+    points_scored_table = pd.DataFrame(columns = ['Team', 'Points_Scored_PG', 'Points_Scored', 
+                                                'Year'])
+    for year in years:
+        link = f'https://www.teamrankings.com/nba/stat/points-per-game?date={str(year)}-10-12'
+        tables = pd.read_html(link)
+        table = tables[0]
+        table = table[['Team', str(year-1)]]
+        table.columns = ['Team', 'Points_Scored_PG']
+        table['Points_Scored'] = table.Points_Scored_PG*82
+        table['Year'] = year
+        points_scored_table = points_scored_table.append(table)
+
+    # Scrape data on historical points allowed
+    years = [2019, 2018, 2017, 2016, 2015, 2014, 2013]
+    points_allowed_table = pd.DataFrame(columns = ['Team', 'Points_Allowed_PG', 'Points_Allowed', 
+                                                'Year'])
+    for year in years:
+        link = f'https://www.teamrankings.com/nba/stat/opponent-points-per-game?date={str(year)}-06-14'
+        tables = pd.read_html(link)
+        table = tables[0]
+        table = table[['Team', str(year-1)]]
+        table.columns = ['Team', 'Points_Allowed_PG']
+        table['Points_Allowed'] = table.Points_Allowed_PG*82
+        table['Year'] = year
+        points_allowed_table = points_allowed_table.append(table)
+
+    # Scrape data on historical win percentage 
+    years = [2019, 2018, 2017, 2016, 2015, 2014, 2013]
+    win_pct_table = pd.DataFrame(columns = ['Team', 'Win_Pct', 'Year'])
+    for year in years:
+        link = f'https://www.teamrankings.com/nba/stat/win-pct-all-games?date={str(year)}-06-14'
+        tables = pd.read_html(link)
+        table = tables[0]
+        table = table[['Team', str(year-1)]]
+        table.columns = ['Team', 'Win_Pct']
+        table['Year'] = year
+        win_pct_table = win_pct_table.append(table)
+
+    # Merge three tables
+    merged = pd.merge(points_scored_table, points_allowed_table, on = ['Team', 'Year'], how = 'inner')
+    merged = merged[['Team', 'Year', 'Points_Scored', 'Points_Allowed']]
+    merged['Point_Differential'] = merged.Points_Scored - merged.Points_Allowed
+    merged = pd.merge(merged, win_pct_table, on = ['Team', 'Year'], how = 'inner')
+
+    # Calculate linear regression
+    x = merged[['Point_Differential']]
+    y = merged.Win_Pct
+    model = LinearRegression()
+    model.fit(x,y)
+    r_squared = model.score(x,y)
+    # print('The y-intercept is: ', model.intercept_)
+    # print('The slope is: ', model.coef_)
+    # print('The r-squared is: ', r_squared)
+
+    # Save regression results
+    if save:
+        file_name = 'Model_Build/Data/win_pct_regression.pickle'
+        with open(file_name, 'wb') as f:
+            pickle.dump(model, f)
+    
+    return model
+
