@@ -219,19 +219,19 @@ def calculate_vorp_projection_equation(save = False):
         # Getting predictive advanced stats from the prior year
         tables = pd.read_html(f'https://www.basketball-reference.com/leagues/NBA_{str(year-1)}_advanced.html')
         table = tables[0]
-        table = table[['Player', 'Tm', 'G', 'MP', 'PER', 'TS%', '3PAr', 'FTr', 'ORB%', 'DRB%', 
+        table = table[['Player', 'Age', 'Tm', 'G', 'MP', 'PER', 'TS%', '3PAr', 'FTr', 'ORB%', 'DRB%', 
                     'TRB%', 'AST%', 'STL%', 'BLK%', 'TOV%', 'USG%', 'OWS', 'DWS', 'WS', 'WS/48',
                     'OBPM', 'DBPM', 'BPM', 'VORP']]
-        table.columns = ['Player', 'Team', 'G', 'MP', 'PER', 'TS%', '3PAr', 'FTr', 'ORB%', 'DRB%', 
+        table.columns = ['Player', 'Age', 'Team', 'G', 'MP', 'PER', 'TS%', '3PAr', 'FTr', 'ORB%', 'DRB%', 
                     'TRB%', 'AST%', 'STL%', 'BLK%', 'TOV%', 'USG%', 'OWS', 'DWS', 'WS', 'WS/48',
                     'OBPM', 'DBPM', 'BPM', 'VORP_Prior_Year']
         table = table[table.Team != 'Tm']
-        columns = ['G', 'MP', 'PER', 'TS%', '3PAr', 'FTr', 'ORB%', 'DRB%', 
+        columns = ['Age', 'G', 'MP', 'PER', 'TS%', '3PAr', 'FTr', 'ORB%', 'DRB%', 
                     'TRB%', 'AST%', 'STL%', 'BLK%', 'TOV%', 'USG%', 'OWS', 'DWS', 'WS', 'WS/48',
                     'OBPM', 'DBPM', 'BPM', 'VORP_Prior_Year']
         for column in columns:
             table[column] = table[column].apply(pd.to_numeric)
-        player_predictive = table.groupby('Player').agg({'G' : 'sum', 'MP' : 'sum', 'PER' : 'mean', 
+        player_predictive = table.groupby('Player').agg({'Age' : 'mean', 'G' : 'sum', 'MP' : 'sum', 'PER' : 'mean', 
                                                         'TS%' : 'mean', '3PAr' : 'mean', 'FTr' : 'mean', 
                                                         'ORB%' : 'mean', 'DRB%' : 'mean', 'TRB%' : 'mean', 
                                                         'AST%' : 'mean', 'STL%' : 'mean', 'BLK%' : 'mean', 
@@ -241,7 +241,7 @@ def calculate_vorp_projection_equation(save = False):
                                                         'VORP_Prior_Year' : 'sum'})
         player_predictive = pd.DataFrame(player_predictive)
         player_predictive.reset_index(drop = False, inplace = True)
-        player_predictive.columns = ['Player', 'G', 'MP', 'PER', 'TS%', '3PAr', 'FTr', 'ORB%', 'DRB%', 
+        player_predictive.columns = ['Player', 'Age', 'G', 'MP', 'PER', 'TS%', '3PAr', 'FTr', 'ORB%', 'DRB%', 
                     'TRB%', 'AST%', 'STL%', 'BLK%', 'TOV%', 'USG%', 'OWS', 'DWS', 'WS', 'WS/48',
                     'OBPM', 'DBPM', 'BPM', 'VORP_Prior_Year']
         
@@ -253,7 +253,7 @@ def calculate_vorp_projection_equation(save = False):
     dataset = dataset.dropna()
     
     # Creating linear regression model 
-    x = dataset[['G', 'MP', 'PER', 'TS%', '3PAr', 'FTr', 'ORB%', 'DRB%', 
+    x = dataset[['Age', 'G', 'MP', 'PER', 'TS%', '3PAr', 'FTr', 'ORB%', 'DRB%', 
                 'TRB%', 'AST%', 'STL%', 'BLK%', 'TOV%', 'USG%', 'OWS', 'DWS', 'WS', 'WS/48',
                 'OBPM', 'DBPM', 'BPM', 'VORP_Prior_Year']]
     y = dataset.VORP
@@ -272,4 +272,4 @@ def calculate_vorp_projection_equation(save = False):
 
     return model
 
-
+calculate_vorp_projection_equation(save = True)
