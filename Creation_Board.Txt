@@ -1,4 +1,10 @@
 Ideas/Things to Quantify
 
 1. B2B Affect
+    a. Team's on a B2B win 44.63678516228748% of the time
+    b. Team's on the first game of a B2B win 47.040785035265253% of the time  
+    c. Team's on the second game of a B2B win 42.31242312423124% of the time 
 2. Home court advantage
+    a. Home team wins 57.91690061763054% of the time  
+3. Combined
+    a. Away team on second B2B wins 35.750113999088007% of the time 
