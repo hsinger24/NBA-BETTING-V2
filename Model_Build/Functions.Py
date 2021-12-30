@@ -12,7 +12,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 from sklearn.linear_model import LinearRegression
 import pickle
 
-def calculate_win_pct_equation(save = False):
+def calculate_point_differential_win_pct_equation(save = False):
     
     # Scrape data on historical points scored
     years = [2019, 2018, 2017, 2016, 2015, 2014, 2013]
@@ -78,7 +78,7 @@ def calculate_win_pct_equation(save = False):
     
     return merged, model
 
-def calculate_vorp_equation(merged, save = False):
+def calculate_vorp_win_pct_equation(merged, save = False):
 
     # Creating team maps to change team names in order to create a matching column
     team_map = {
@@ -159,7 +159,6 @@ def calculate_vorp_equation(merged, save = False):
         table = table[['Player', 'Tm', 'VORP']]
         table.columns = ['Player', 'Team', 'VORP']
         table = table[table.Team != 'Tm']
-        table.Team.unique()
         table['Team'] = table.Team.apply(lambda x: team_map[x])
         table['VORP'] = table.VORP.apply(pd.to_numeric)
         team_vorp = table.groupby('Team')['VORP'].sum()
@@ -192,4 +191,85 @@ def calculate_vorp_equation(merged, save = False):
             pickle.dump(model, f)
 
     return model
+
+def calculate_vorp_projection_equation(save = False):
+
+    # Creating dataset
+    years = [2019, 2018, 2017, 2016, 2015, 2014]
+    dataset_columns = ['Player', 'G', 'MP', 'PER', 'TS%', '3PAr', 'FTr', 'ORB%', 'DRB%', 
+                    'TRB%', 'AST%', 'STL%', 'BLK%', 'TOV%', 'USG%', 'OWS', 'DWS', 'WS', 'WS/48',
+                    'OBPM', 'DBPM', 'BPM', 'VORP_Prior_Year']
+    dataset = pd.DataFrame(columns = dataset_columns)
+
+    for year in years:
+        # Getting VORP for a given year
+        tables = pd.read_html(f'https://www.basketball-reference.com/leagues/NBA_{str(year)}_advanced.html')
+        table = tables[0]
+        table = table[['Player', 'Tm', 'VORP']]
+        table.columns = ['Player', 'Team', 'VORP']
+        table = table[table.Team != 'Tm']
+        table.Team.unique()
+        table['VORP'] = table.VORP.apply(pd.to_numeric)
+        player_vorp = table.groupby('Player')['VORP'].sum()
+        player_vorp = pd.DataFrame(player_vorp)
+        player_vorp.reset_index(drop = False, inplace = True)
+        player_vorp.columns = ['Player', 'VORP']
+        player_vorp['Year'] = year
+        
+        # Getting predictive advanced stats from the prior year
+        tables = pd.read_html(f'https://www.basketball-reference.com/leagues/NBA_{str(year-1)}_advanced.html')
+        table = tables[0]
+        table = table[['Player', 'Tm', 'G', 'MP', 'PER', 'TS%', '3PAr', 'FTr', 'ORB%', 'DRB%', 
+                    'TRB%', 'AST%', 'STL%', 'BLK%', 'TOV%', 'USG%', 'OWS', 'DWS', 'WS', 'WS/48',
+                    'OBPM', 'DBPM', 'BPM', 'VORP']]
+        table.columns = ['Player', 'Team', 'G', 'MP', 'PER', 'TS%', '3PAr', 'FTr', 'ORB%', 'DRB%', 
+                    'TRB%', 'AST%', 'STL%', 'BLK%', 'TOV%', 'USG%', 'OWS', 'DWS', 'WS', 'WS/48',
+                    'OBPM', 'DBPM', 'BPM', 'VORP_Prior_Year']
+        table = table[table.Team != 'Tm']
+        columns = ['G', 'MP', 'PER', 'TS%', '3PAr', 'FTr', 'ORB%', 'DRB%', 
+                    'TRB%', 'AST%', 'STL%', 'BLK%', 'TOV%', 'USG%', 'OWS', 'DWS', 'WS', 'WS/48',
+                    'OBPM', 'DBPM', 'BPM', 'VORP_Prior_Year']
+        for column in columns:
+            table[column] = table[column].apply(pd.to_numeric)
+        player_predictive = table.groupby('Player').agg({'G' : 'sum', 'MP' : 'sum', 'PER' : 'mean', 
+                                                        'TS%' : 'mean', '3PAr' : 'mean', 'FTr' : 'mean', 
+                                                        'ORB%' : 'mean', 'DRB%' : 'mean', 'TRB%' : 'mean', 
+                                                        'AST%' : 'mean', 'STL%' : 'mean', 'BLK%' : 'mean', 
+                                                        'TOV%' : 'mean', 'USG%' : 'mean', 'OWS' : 'sum', 
+                                                        'DWS' : 'sum', 'WS' : 'sum', 'WS/48' : 'mean', 
+                                                        'OBPM' : 'sum', 'DBPM' : 'sum', 'BPM' : 'sum',
+                                                        'VORP_Prior_Year' : 'sum'})
+        player_predictive = pd.DataFrame(player_predictive)
+        player_predictive.reset_index(drop = False, inplace = True)
+        player_predictive.columns = ['Player', 'G', 'MP', 'PER', 'TS%', '3PAr', 'FTr', 'ORB%', 'DRB%', 
+                    'TRB%', 'AST%', 'STL%', 'BLK%', 'TOV%', 'USG%', 'OWS', 'DWS', 'WS', 'WS/48',
+                    'OBPM', 'DBPM', 'BPM', 'VORP_Prior_Year']
+        
+        # Merging VORP with prior year's predictive stats
+        merged = pd.merge(player_vorp, player_predictive, on = 'Player', how = 'inner')
+        
+        # Appending to full dataset
+        dataset = dataset.append(merged)
+    dataset = dataset.dropna()
+    
+    # Creating linear regression model 
+    x = dataset[['G', 'MP', 'PER', 'TS%', '3PAr', 'FTr', 'ORB%', 'DRB%', 
+                'TRB%', 'AST%', 'STL%', 'BLK%', 'TOV%', 'USG%', 'OWS', 'DWS', 'WS', 'WS/48',
+                'OBPM', 'DBPM', 'BPM', 'VORP_Prior_Year']]
+    y = dataset.VORP
+    model = LinearRegression()
+    model.fit(x,y)
+    # r_squared = model.score(x,y)
+    # print('The y-intercept is: ', model.intercept_)
+    # print('The slope is: ', model.coef_)
+    # print('The r-squared is: ', r_squared)
+
+    # Saving model to data folder
+    if save:
+        file_name = 'Model_Build/Data/predict_vorp_regression.pickle'
+        with open(file_name, 'wb') as f:
+            pickle.dump(model, f)
+
+    return model
+
 
