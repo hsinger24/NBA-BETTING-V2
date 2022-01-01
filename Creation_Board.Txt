@@ -10,3 +10,7 @@ Ideas/Things to Quantify
 2. Home court advantage
     a. Home team wins 57.91690061763054% of the time  
         1. Other side is 60.43832537229559%
+
+Points of Improvement:
+
+1. VORP predictions
