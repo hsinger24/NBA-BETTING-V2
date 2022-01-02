@@ -51,3 +51,34 @@ def retrieve_active_rosters():
         team_dict[team] = players
 
     return team_dict
+
+def retrieve_active_rosters_vorp(current_year):
+    
+    # Retrieving active rosters 
+    team_dict = retrieve_active_rosters()
+
+    # Retrieving current year VORPs
+    tables = pd.read_html(f'https://www.basketball-reference.com/leagues/NBA_{str(current_year)}_advanced.html')
+    table = tables[0]
+    table = table[['Player', 'Tm', 'VORP']]
+    table.columns = ['Player', 'Team', 'VORP']
+    table = table[table.Team != 'Tm']
+    table.Team.unique()
+    table['VORP'] = table.VORP.apply(pd.to_numeric)
+    player_vorp = table.groupby('Player')['VORP'].sum()
+    player_vorp = pd.DataFrame(player_vorp)
+    player_vorp.reset_index(drop = False, inplace = True)
+    player_vorp.columns = ['Player', 'VORP']
+    player_vorp
+
+    # Aggregating team VORPs
+    team_vorps = {}
+    for team, roster in team_dict.items():
+        team_war = 0
+        for player in roster:
+            vorp = player_vorp[player_vorp.Player == player]
+            vorp = sum(vorp.VORP)
+            team_war += vorp
+        team_vorps[team] = team_war
+
+    return team_vorps
