@@ -82,3 +82,60 @@ def retrieve_active_rosters_vorp(current_year):
         team_vorps[team] = team_war
 
     return team_vorps
+
+def retrieve_adjusted_point_differetial():
+
+    # Possesions table team map for merging
+    team_map = {
+        'LA Lakers' : 'Los Angeles Lakers',
+        'Charlotte' : 'Charlotte Hornets',
+        'Sacramento' : 'Sacramento Kings',
+        'San Antonio' : 'San Antonio Spurs',
+        'Houston' : 'Houston Rockets',
+        'Minnesota' : 'Minnesota Timberwolves',
+        'Phoenix' : 'Phoenix Suns',
+        'Brooklyn' : 'Brooklyn Nets',
+        'Detroit' : 'Detroit Pistons',
+        'Memphis' : 'Memphis Grizzlies',
+        'Milwaukee' : 'Milwaukee Bucks',
+        'Boston' : 'Boston Celtics',
+        'Utah' : 'Utah Jazz',
+        'Golden State' : 'Golden State Warriors',
+        'LA Clippers' : 'Los Angeles Clippers',
+        'Orlando' : 'Orlando Magic',
+        'Chicago' : 'Chicago Bulls',
+        'Portland' : 'Portland Trail Blazers',
+        'Okla City': 'Oklahoma City Thunder',
+        'New Orleans' : 'New Orleans Pelicans',
+        'Indiana' : 'Indiana Pacers',
+        'Washington' : 'Washington Wizards',
+        'Cleveland' : 'Cleveland Cavaliers',
+        'Atlanta' : 'Atlanta Hawks',
+        'Toronto' : 'Toronto Raptors',
+        'Denver' : 'Denver Nuggets',
+        'New York' : 'New York Knicks',
+        'Philadelphia' : 'Philadelphia 76ers',
+        'Miami' : 'Miami Heat',
+        'Dallas' : 'Dallas Mavericks'
+    }
+
+    # Getting net adjusted rating table
+    rating_tables = pd.read_html('https://www.basketball-reference.com/leagues/NBA_2022_ratings.html')
+    rating_table = rating_tables[0]
+    rating_table.columns = rating_table.columns.droplevel(0)
+    rating_table['Games'] = rating_table.W + rating_table.L
+
+    # Getting possesions table
+    possesions_table = pd.read_html('https://www.teamrankings.com/nba/stat/possessions-per-game')
+    possesions_table = possesions_table[0]
+    possesions_table['Team'] = possesions_table.Team.apply(lambda x: team_map[x])
+    possesions_table = possesions_table[['Team', '2021']]
+    possesions_table.columns = ['Team', 'Possesions/Game']
+
+    # Merging tables
+    merged = pd.merge(rating_table, possesions_table, on = 'Team', how = 'inner')
+    merged['Possesions'] = merged.Games*merged['Possesions/Game']
+    merged['Adj_Point_Differential'] = merged.Possesions/100 * merged.NRtg
+    merged['Adj_Point_Differential_82'] = merged.Adj_Point_Differential*(82/merged.Games)
+
+    return merged

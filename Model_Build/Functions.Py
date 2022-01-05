@@ -272,4 +272,3 @@ def calculate_vorp_projection_equation(save = False):
 
     return model
 
-calculate_vorp_projection_equation(save = True)
