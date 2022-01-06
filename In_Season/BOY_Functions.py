@@ -11,18 +11,55 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.action_chains import ActionChains
 from sklearn.linear_model import LinearRegression
 import pickle
-from In_Season.Daily_Functions import *
+# from In_Season.Daily_Functions import *
 
-def retrieve_boy_vorps(current_year, prior_year):
+def retrieve_active_rosters():
+
+    # Instantiating necessary items
+    tables = pd.read_html('https://www.lineups.com/nba/depth-charts')
+    teams = ['Atlanta Hawks', 'Boston Celtics', 'Brooklyn Nets', 'Charlotte Hornets',
+            'Chicago Bulls', 'Cleveland Cavaliers', 'Dallas Mavericks', 'Denver Nuggets',
+            'Detroit Pistons', 'Golden State Warriors', 'Houston Rockets', 'Indiana Pacers',
+            'Los Angeles Clippers', 'Los Angeles Lakers', 'Memphis Grizzlies', 'Miami Heat',
+            'Milwaukee Bucks', 'Minnesota Timberwolves', 'New Orleans Pelicans',
+            'New York Knicks', 'Oklahoma City Thunder', 'Orlando Magic', 'Philadelphia 76ers',
+            'Phoenix Suns', 'Portland Trailblazers', 'Sacramento Kings', 'San Antonio Spurs',
+            'Toronto Raptors', 'Utah Jazz', 'Washington Wizards']
+    def name_adjustment(x):
+        try:
+            names = x.split(' ')
+            if len(names) == 4:
+                name = names[0] + ' ' + names[1]
+            if len(names) == 6:
+                name = names[0] + ' ' + names[1] + ' ' + names[2]
+        except:
+            name = x
+        return name
+    
+    # Getting active rosters into dictionary of lists for each team
+    team_dict = {}
+    for team, table in zip(teams,tables):
+        table.columns = table.columns.droplevel(0)
+        for i in [1,2,3]:
+            table[str(i)] = table[str(i)].apply(name_adjustment)
+        table = table[['1', '2', '3']]
+        players = list()
+        for i in range(table.shape[0]): 
+            for j in range(table.shape[1]):
+                player = table.iloc[i, j]
+                players = players + [player]
+        team_dict[team] = players
+
+    return team_dict
+
+def retrieve_prior_year_vorps(current_year):
 
     # Retrieving active rosters 
     team_dict = retrieve_active_rosters()
 
-    # Retrieving current year VORPs
-    if not prior_year:
-        tables = pd.read_html(f'https://www.basketball-reference.com/leagues/NBA_{str(current_year)}_advanced.html')
-    if prior_year:
-        tables = pd.read_html(f'https://www.basketball-reference.com/leagues/NBA_{str(current_year-1)}_advanced.html')
+    # Retrieving prior year VORPs
+
+    tables = pd.read_html(f'https://www.basketball-reference.com/leagues/NBA_{str(current_year-1)}_advanced.html')
     table = tables[0]
     table = table[['Player', 'Tm', 'VORP']]
     table.columns = ['Player', 'Team', 'VORP']
@@ -36,18 +73,25 @@ def retrieve_boy_vorps(current_year, prior_year):
     player_vorp
 
     # Aggregating team VORPs
-    team_vorps = {}
+    team_vorps = pd.DataFrame(columns = ['Team', 'Prior_Year_Vorp'])
     for team, roster in team_dict.items():
         team_war = 0
         for player in roster:
             vorp = player_vorp[player_vorp.Player == player]
             vorp = sum(vorp.VORP)
             team_war += vorp
-        team_vorps[team] = team_war
+        if current_year == 2022:
+            team_war = team_war * (82/72)
+        vorp_series = pd.Series([team, team_war], index = team_vorps.columns)
+        team_vorps = team_vorps.append(vorp_series, ignore_index = True)
+    
+    #Save to data file
+    file_path = 'In_Season/Data/prior_year_vorps.csv'
+    team_vorps.to_csv(file_path)
 
     return team_vorps
 
-def retrieve_prior_year_point_differential(prior_year):
+def retrieve_prior_year_point_differential(current_year):
     
     # Possesions table team map for merging
     team_map = {
@@ -84,7 +128,7 @@ def retrieve_prior_year_point_differential(prior_year):
     }
 
     # Getting net adjusted rating table
-    rating_tables = pd.read_html(f'https://www.basketball-reference.com/leagues/NBA_{prior_year}_ratings.html')
+    rating_tables = pd.read_html(f'https://www.basketball-reference.com/leagues/NBA_{str(current_year-1)}_ratings.html')
     rating_table = rating_tables[0]
     rating_table.columns = rating_table.columns.droplevel(0)
     rating_table['Games'] = rating_table.W + rating_table.L
@@ -104,3 +148,4 @@ def retrieve_prior_year_point_differential(prior_year):
 
     return merged
 
+print(retrieve_prior_year_vorps(2022))
