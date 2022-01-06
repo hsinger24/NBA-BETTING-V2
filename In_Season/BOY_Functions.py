@@ -11,51 +11,15 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.action_chains import ActionChains
 from sklearn.linear_model import LinearRegression
 import pickle
-# from In_Season.Daily_Functions import *
+import datetime as dt
 
-def retrieve_active_rosters():
+current_year = dt.date.today().year
 
-    # Instantiating necessary items
-    tables = pd.read_html('https://www.lineups.com/nba/depth-charts')
-    teams = ['Atlanta Hawks', 'Boston Celtics', 'Brooklyn Nets', 'Charlotte Hornets',
-            'Chicago Bulls', 'Cleveland Cavaliers', 'Dallas Mavericks', 'Denver Nuggets',
-            'Detroit Pistons', 'Golden State Warriors', 'Houston Rockets', 'Indiana Pacers',
-            'Los Angeles Clippers', 'Los Angeles Lakers', 'Memphis Grizzlies', 'Miami Heat',
-            'Milwaukee Bucks', 'Minnesota Timberwolves', 'New Orleans Pelicans',
-            'New York Knicks', 'Oklahoma City Thunder', 'Orlando Magic', 'Philadelphia 76ers',
-            'Phoenix Suns', 'Portland Trailblazers', 'Sacramento Kings', 'San Antonio Spurs',
-            'Toronto Raptors', 'Utah Jazz', 'Washington Wizards']
-    def name_adjustment(x):
-        try:
-            names = x.split(' ')
-            if len(names) == 4:
-                name = names[0] + ' ' + names[1]
-            if len(names) == 6:
-                name = names[0] + ' ' + names[1] + ' ' + names[2]
-        except:
-            name = x
-        return name
-    
-    # Getting active rosters into dictionary of lists for each team
-    team_dict = {}
-    for team, table in zip(teams,tables):
-        table.columns = table.columns.droplevel(0)
-        for i in [1,2,3]:
-            table[str(i)] = table[str(i)].apply(name_adjustment)
-        table = table[['1', '2', '3']]
-        players = list()
-        for i in range(table.shape[0]): 
-            for j in range(table.shape[1]):
-                player = table.iloc[i, j]
-                players = players + [player]
-        team_dict[team] = players
-
-    return team_dict
 
 def retrieve_prior_year_vorps(current_year):
 
     # Retrieving active rosters 
-    team_dict = retrieve_active_rosters()
+    # team_dict = retrieve_active_rosters()
 
     # Retrieving prior year VORPs
 
@@ -66,24 +30,25 @@ def retrieve_prior_year_vorps(current_year):
     table = table[table.Team != 'Tm']
     table.Team.unique()
     table['VORP'] = table.VORP.apply(pd.to_numeric)
-    player_vorp = table.groupby('Player')['VORP'].sum()
+    player_vorp = table.groupby('Team')['VORP'].sum()
     player_vorp = pd.DataFrame(player_vorp)
     player_vorp.reset_index(drop = False, inplace = True)
-    player_vorp.columns = ['Player', 'VORP']
-    player_vorp
+    player_vorp.columns = ['Team', 'VORP']
+    team_vorps = player_vorp
+    team_vorps['VORP'] = team_vorps.VORP * (82/72)
 
-    # Aggregating team VORPs
-    team_vorps = pd.DataFrame(columns = ['Team', 'Prior_Year_Vorp'])
-    for team, roster in team_dict.items():
-        team_war = 0
-        for player in roster:
-            vorp = player_vorp[player_vorp.Player == player]
-            vorp = sum(vorp.VORP)
-            team_war += vorp
-        if current_year == 2022:
-            team_war = team_war * (82/72)
-        vorp_series = pd.Series([team, team_war], index = team_vorps.columns)
-        team_vorps = team_vorps.append(vorp_series, ignore_index = True)
+    # # Aggregating team VORPs
+    # team_vorps = pd.DataFrame(columns = ['Team', 'Prior_Year_Vorp'])
+    # for team, roster in team_dict.items():
+    #     team_war = 0
+    #     for player in roster:
+    #         vorp = player_vorp[player_vorp.Player == player]
+    #         vorp = sum(vorp.VORP)
+    #         team_war += vorp
+    #     if current_year == 2022:
+    #         team_war = team_war * (82/72)
+    #     vorp_series = pd.Series([team, team_war], index = team_vorps.columns)
+    #     team_vorps = team_vorps.append(vorp_series, ignore_index = True)
     
     #Save to data file
     file_path = 'In_Season/Data/prior_year_vorps.csv'
@@ -146,6 +111,19 @@ def retrieve_prior_year_point_differential(current_year):
     merged['Adj_Point_Differential'] = merged.Possesions/100 * merged.NRtg
     merged['Adj_Point_Differential_82'] = merged.Adj_Point_Differential*(82/merged.Games)
 
+    # Importing win pct model
+    file_name = 'Model_Build/Data/win_pct_regression.pickle'
+    with open(file_name, 'rb') as f:
+        model = pickle.load(f)
+
+    # Adding adjusted win percent column
+    x = merged[['Adj_Point_Differential_82']]
+    merged['Adjusted_Win_Pct'] = model.predict(x)
+
+    # Saving to data folder
+    file_path = 'In_Season/Data/prior_year_adjusted_win_pct'
+    merged.to_csv(file_path)
+
     return merged
 
-print(retrieve_prior_year_vorps(2022))
+print(retrieve_prior_year_point_differential(2022))

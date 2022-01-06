@@ -72,14 +72,17 @@ def retrieve_active_rosters_vorp(current_year):
     player_vorp
 
     # Aggregating team VORPs
-    team_vorps = {}
+    team_vorps = pd.DataFrame(columns = ['Team', 'Prior_Year_Vorp'])
     for team, roster in team_dict.items():
         team_war = 0
         for player in roster:
             vorp = player_vorp[player_vorp.Player == player]
             vorp = sum(vorp.VORP)
             team_war += vorp
-        team_vorps[team] = team_war
+        if current_year == 2022:
+            team_war = team_war * (82/72)
+        vorp_series = pd.Series([team, team_war], index = team_vorps.columns)
+        team_vorps = team_vorps.append(vorp_series, ignore_index = True)
 
     return team_vorps
 
