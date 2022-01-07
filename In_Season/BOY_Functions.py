@@ -197,9 +197,56 @@ def retrieve_opening_day_roster_late_start():
 
     return team_dict
 
-def retrieve_opening_day_vorp_predictors():
+def retrieve_opening_day_vorp_predictors(current_year):
+    
+    # Getting predictive advanced stats from the prior year and adjusting columns
+    tables = pd.read_html(f'https://www.basketball-reference.com/leagues/NBA_{str(current_year-1)}_advanced.html')
+    table = tables[0]
+    table = table[['Player', 'Age', 'Tm', 'G', 'MP', 'PER', 'TS%', '3PAr', 'FTr', 'ORB%', 'DRB%', 
+                'TRB%', 'AST%', 'STL%', 'BLK%', 'TOV%', 'USG%', 'OWS', 'DWS', 'WS', 'WS/48',
+                'OBPM', 'DBPM', 'BPM', 'VORP']]
+    table.columns = ['Player', 'Age', 'Team', 'G', 'MP', 'PER', 'TS%', '3PAr', 'FTr', 'ORB%', 'DRB%', 
+                'TRB%', 'AST%', 'STL%', 'BLK%', 'TOV%', 'USG%', 'OWS', 'DWS', 'WS', 'WS/48',
+                'OBPM', 'DBPM', 'BPM', 'VORP_Prior_Year']
+    table = table[table.Team != 'Tm']
+    columns = ['Age', 'G', 'MP', 'PER', 'TS%', '3PAr', 'FTr', 'ORB%', 'DRB%', 
+                'TRB%', 'AST%', 'STL%', 'BLK%', 'TOV%', 'USG%', 'OWS', 'DWS', 'WS', 'WS/48',
+                'OBPM', 'DBPM', 'BPM', 'VORP_Prior_Year']
+    for column in columns:
+        table[column] = table[column].apply(pd.to_numeric)
+    
+    # Grouping players, converting to DF, naming columns
+    player_predictive = table.groupby('Player').agg({'Age' : 'mean', 'G' : 'sum', 'MP' : 'sum', 'PER' : 'mean', 
+                                                    'TS%' : 'mean', '3PAr' : 'mean', 'FTr' : 'mean', 
+                                                    'ORB%' : 'mean', 'DRB%' : 'mean', 'TRB%' : 'mean', 
+                                                    'AST%' : 'mean', 'STL%' : 'mean', 'BLK%' : 'mean', 
+                                                    'TOV%' : 'mean', 'USG%' : 'mean', 'OWS' : 'sum', 
+                                                    'DWS' : 'sum', 'WS' : 'sum', 'WS/48' : 'mean', 
+                                                    'OBPM' : 'sum', 'DBPM' : 'sum', 'BPM' : 'sum',
+                                                    'VORP_Prior_Year' : 'sum'})
+    player_predictive = pd.DataFrame(player_predictive)
+    player_predictive.reset_index(drop = False, inplace = True)
+    player_predictive.columns = ['Player', 'Age', 'G', 'MP', 'PER', 'TS%', '3PAr', 'FTr', 'ORB%', 'DRB%', 
+                'TRB%', 'AST%', 'STL%', 'BLK%', 'TOV%', 'USG%', 'OWS', 'DWS', 'WS', 'WS/48',
+                'OBPM', 'DBPM', 'BPM', 'VORP_Prior_Year']
+    
+    
+    # Adjusting for less games
+    if current_year == 2022:
+        player_predictive['VORP_Prior_Year'] = player_predictive.VORP_Prior_Year * (82/72)
+        player_predictive['G'] = player_predictive.G * (82/72)
+        player_predictive['MP'] = player_predictive.MP * (82/72)
+        player_predictive['OWS'] = player_predictive.OWS * (82/72)
+        player_predictive['DWS'] = player_predictive.DWS * (82/72)
+        player_predictive['WS'] = player_predictive.WS * (82/72)
+        player_predictive['OBPM'] = player_predictive.OBPM * (82/72)
+        player_predictive['DBPM'] = player_predictive.DBPM * (82/72)
+        player_predictive['BPM'] = player_predictive.BPM * (82/72)
 
+    # Saving data
+    file_name = 'In_Season/Data/vorp_predictive_data.csv'
+    player_predictive.to_csv(file_name)
+    
+    return player_predictive
 
-    return
-
-retrieve_opening_day_roster_late_start()
+retrieve_opening_day_vorp_predictors(current_year)
