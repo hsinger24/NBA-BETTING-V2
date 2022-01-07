@@ -1,3 +1,5 @@
+########## Imports and variables ##########
+
 import pandas as pd
 import numpy as np
 from selenium import webdriver
@@ -15,6 +17,7 @@ import datetime as dt
 
 current_year = dt.date.today().year
 
+########## Functions ########## 
 
 def retrieve_prior_year_vorps(current_year):
 
@@ -126,4 +129,77 @@ def retrieve_prior_year_point_differential(current_year):
 
     return merged
 
-print(retrieve_prior_year_point_differential(2022))
+def retrieve_opening_day_roster(current_year):
+    tables = pd.read_html('https://www.lineups.com/nba/depth-charts')
+    teams = ['Atlanta Hawks', 'Boston Celtics', 'Brooklyn Nets', 'Charlotte Hornets',
+            'Chicago Bulls', 'Cleveland Cavaliers', 'Dallas Mavericks', 'Denver Nuggets',
+            'Detroit Pistons', 'Golden State Warriors', 'Houston Rockets', 'Indiana Pacers',
+            'Los Angeles Clippers', 'Los Angeles Lakers', 'Memphis Grizzlies', 'Miami Heat',
+            'Milwaukee Bucks', 'Minnesota Timberwolves', 'New Orleans Pelicans',
+            'New York Knicks', 'Oklahoma City Thunder', 'Orlando Magic', 'Philadelphia 76ers',
+            'Phoenix Suns', 'Portland Trailblazers', 'Sacramento Kings', 'San Antonio Spurs',
+            'Toronto Raptors', 'Utah Jazz', 'Washington Wizards']
+    def name_adjustment(x):
+        try:
+            names = x.split(' ')
+            if len(names) == 4:
+                name = names[0] + ' ' + names[1]
+            if len(names) == 6:
+                name = names[0] + ' ' + names[1] + ' ' + names[2]
+        except:
+            name = x
+        return name
+
+    # Getting active rosters into dictionary of lists for each team
+    team_dict = {}
+    for team, table in zip(teams,tables):
+        table.columns = table.columns.droplevel(0)
+        for i in [1,2,3]:
+            table[str(i)] = table[str(i)].apply(name_adjustment)
+        table = table[['1', '2', '3']]
+        players = list()
+        for i in range(table.shape[0]): 
+            for j in range(table.shape[1]):
+                player = table.iloc[i, j]
+                players = players + [player]
+        team_dict[team] = players
+
+    return team_dict
+
+def retrieve_opening_day_roster_late_start():
+
+    # Teams list to iterate through links
+    teams = ['Atlanta-Hawks', 'Boston-Celtics', 'Brooklyn-Nets', 'Charlotte-Hornets', 'Chicago-Bulls', 
+    'Cleveland-Cavaliers', 'Dallas-Mavericks', 'Denver-Nuggets', 'Detroit-Pistons', 'Golden-State-Warriors',
+    'Houston-Rockets', 'Indiana-Pacers', 'Los-Angeles-Clippers', 'Los-Angeles-Lakers', 'Memphis-Grizzlies',
+    'Miami-Heat', 'Milwaukee-Bucks', 'Minnesota-Timberwolves', 'New-Orleans-Pelicans', 'New-York-Knicks',
+    'Oklahoma-City-Thunder', 'Orlando-Magic', 'Philadelphia-Sixers', 'Phoenix-Suns', 'Portland-Trail-Blazers',
+    'Sacramento-Kings', 'San-Antonio-Spurs', 'Toronto-Raptors', 'Utah-Jazz', 'Washington-Wizards']
+
+    # Iterating through each team to get dictionary of rosters
+    team_dict = {}
+    for i,team in enumerate(teams):
+        link = f'https://basketball.realgm.com/nba/teams/{team}/{str(i+1)}/Rosters/Opening_Day'
+        tables = pd.read_html(link)
+        table = tables[8]
+        table = table[['Player', 'YOS']]
+        team = team.split('-')
+        if len(team) == 2:
+            team = team[0] + ' ' + team[1]
+        if len(team) == 3:
+            team = team[0] + ' ' + team[1] + ' ' + team[2]
+        team_dict[team] = table
+    
+    # Saving opening day rosters
+    file_name = 'In_Season/Data/opening_day_rosters.pickle'
+    with open(file_name, 'wb') as f:
+        pickle.dump(team_dict, f)
+
+    return team_dict
+
+def retrieve_opening_day_vorp_predictors():
+
+
+    return
+
+retrieve_opening_day_roster_late_start()
