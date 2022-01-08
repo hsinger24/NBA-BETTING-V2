@@ -257,7 +257,7 @@ def retrieve_opening_day_vorp_predictors(current_year):
     
     return player_predictive
 
-def calculate_vorp_predictions():
+def calculate_vorp_predictions(current_year):
 
     # Retreive opening day rosters
     file_name = 'In_Season/Data/opening_day_rosters.pickle'
@@ -269,15 +269,93 @@ def calculate_vorp_predictions():
     with open(file_name, 'rb') as f:
         model = pickle.load(f)
 
-    # Retreive VORP predictors 
+    # Retreive VORP predictors prior year
     def name_adjustment(x):
         x = x.split(' ')
         x = x[0] + ' ' + x[1]      
         return x
-    file_name = 'In_Season/Data/vorp_predictive_data.csv'
-    prior_year_predictors = pd.read_csv(file_name, index_col = 0)
+    def name_exceptions(x):
+        if x == 'enes kanter':
+            return 'enes freedom'
+        if x == 'nicolas claxton':
+            return 'nic claxton'
+        if x == 'kj martin':
+            return 'kenyon martin'
+        if x == 'jayden scrubb':
+            return 'jay scrubb'
+        if x == 'mohamed bamba':
+            return 'mo bamba'
+        if x == 'moe wagner':
+            return 'moritz wagner'
+        if x == 'ogugua anunoby':
+            return 'og anunoby'
+        if x == 'raulzinho neto':
+            return 'raul neto'
+        return x
+    prior_year_predictors = retrieve_opening_day_vorp_predictors(current_year)
     prior_year_predictors['Player'] = prior_year_predictors.Player.apply(unidecode.unidecode)
     prior_year_predictors['Player'] = prior_year_predictors.Player.apply(name_adjustment)
     prior_year_predictors['Player'] = prior_year_predictors.Player.str.replace('.', '')
     prior_year_predictors['Player'] = prior_year_predictors.Player.str.replace("'", '')
     prior_year_predictors['Player'] = prior_year_predictors.Player.str.lower()
+
+    # Retreiving VORP predictors two years prior
+    two_years_prior_predictors = retrieve_opening_day_vorp_predictors(current_year = 2021)
+    two_years_prior_predictors['Player'] = two_years_prior_predictors.Player.apply(unidecode.unidecode)
+    two_years_prior_predictors['Player'] = two_years_prior_predictors.Player.apply(name_adjustment)
+    two_years_prior_predictors['Player'] = two_years_prior_predictors.Player.str.replace('.', '')
+    two_years_prior_predictors['Player'] = two_years_prior_predictors.Player.str.replace("'", '')
+    two_years_prior_predictors['Player'] = two_years_prior_predictors.Player.str.lower()
+
+    # Creating team VORP DF 
+    missed_players = list()
+    vorps = pd.DataFrame(columns = ['Team', 'VORP_projection'])
+    for key, value in opening_day_rosters.items():
+        team = key
+        roster = value
+        team_vorp = 0
+        for index, row in roster.iterrows():
+            player = row.Player
+            service = row.YOS
+            if service > 0:
+
+                # Formatting player strings
+                player = player.replace('.', '')
+                player = player.replace(',', '')
+                player = player.replace("'", '')
+                player = player.split(' ')
+                player = player[0] + ' ' + player[1]
+                player = player.lower()
+                player = name_exceptions(player)
+                
+                # Creating actual predictions using prior year data
+                predictors = prior_year_predictors[prior_year_predictors.Player == player]
+                if len(predictors) > 0:
+                    predictors = predictors[['Age', 'G', 'MP', 'PER', 'TS%', '3PAr', 'FTr', 'ORB%', 'DRB%',
+                        'TRB%', 'AST%', 'STL%', 'BLK%', 'TOV%', 'USG%', 'OWS', 'DWS', 'WS',
+                        'WS/48', 'OBPM', 'DBPM', 'BPM', 'VORP_Prior_Year']]
+                    vorp_prediction = model.predict(predictors)[0]
+                    team_vorp += vorp_prediction
+                
+                # Trying two years prior data for missed players
+                if len(predictors) == 0:
+                    predictors = two_years_prior_predictors[two_years_prior_predictors.Player == player]
+                    if len(predictors) > 0:
+                        predictors = predictors[['Age', 'G', 'MP', 'PER', 'TS%', '3PAr', 'FTr', 'ORB%', 'DRB%',
+                            'TRB%', 'AST%', 'STL%', 'BLK%', 'TOV%', 'USG%', 'OWS', 'DWS', 'WS',
+                            'WS/48', 'OBPM', 'DBPM', 'BPM', 'VORP_Prior_Year']]
+                        vorp_prediction = model.predict(predictors)[0]
+                        team_vorp += vorp_prediction
+                    
+                    # Appending to missed players list  
+                    if len(predictors) == 0:
+                        missed_players.append(team + ': ' + player)
+                    
+        # Adding team vorp to overall df  
+        series = pd.Series([team, team_vorp], index = vorps.columns)
+        vorps = vorps.append(series, ignore_index = True)
+
+    return vorps, missed_players
+
+########## Run ########## 
+
