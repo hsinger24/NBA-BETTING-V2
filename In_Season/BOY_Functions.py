@@ -14,6 +14,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 from sklearn.linear_model import LinearRegression
 import pickle
 import datetime as dt
+import unidecode
 
 current_year = dt.date.today().year
 
@@ -179,9 +180,16 @@ def retrieve_opening_day_roster_late_start():
     # Iterating through each team to get dictionary of rosters
     team_dict = {}
     for i,team in enumerate(teams):
-        link = f'https://basketball.realgm.com/nba/teams/{team}/{str(i+1)}/Rosters/Opening_Day'
+        if team == 'Brooklyn-Nets':
+            i = 37
+        if i < 2:
+            link = f'https://basketball.realgm.com/nba/teams/{team}/{str(i+1)}/Rosters/Opening_Day'
+        elif i > 18:
+            link = f'https://basketball.realgm.com/nba/teams/{team}/{str(i+1)}/Rosters/Opening_Day'
+        else:
+            link = f'https://basketball.realgm.com/nba/teams/{team}/{str(i)}/Rosters/Opening_Day'
         tables = pd.read_html(link)
-        table = tables[8]
+        table = tables[-10]
         table = table[['Player', 'YOS']]
         team = team.split('-')
         if len(team) == 2:
@@ -244,9 +252,32 @@ def retrieve_opening_day_vorp_predictors(current_year):
         player_predictive['BPM'] = player_predictive.BPM * (82/72)
 
     # Saving data
-    file_name = 'In_Season/Data/vorp_predictive_data.csv'
-    player_predictive.to_csv(file_name)
+    # file_name = 'In_Season/Data/vorp_predictive_data.csv'
+    # player_predictive.to_csv(file_name)
     
     return player_predictive
 
-retrieve_opening_day_vorp_predictors(current_year)
+def calculate_vorp_predictions():
+
+    # Retreive opening day rosters
+    file_name = 'In_Season/Data/opening_day_rosters.pickle'
+    with open(file_name, 'rb') as f:
+        opening_day_rosters = pickle.load(f)
+
+    # Retreive VORP prediction function
+    file_name = 'Model_Build/Data/predict_vorp_regression.pickle'
+    with open(file_name, 'rb') as f:
+        model = pickle.load(f)
+
+    # Retreive VORP predictors 
+    def name_adjustment(x):
+        x = x.split(' ')
+        x = x[0] + ' ' + x[1]      
+        return x
+    file_name = 'In_Season/Data/vorp_predictive_data.csv'
+    prior_year_predictors = pd.read_csv(file_name, index_col = 0)
+    prior_year_predictors['Player'] = prior_year_predictors.Player.apply(unidecode.unidecode)
+    prior_year_predictors['Player'] = prior_year_predictors.Player.apply(name_adjustment)
+    prior_year_predictors['Player'] = prior_year_predictors.Player.str.replace('.', '')
+    prior_year_predictors['Player'] = prior_year_predictors.Player.str.replace("'", '')
+    prior_year_predictors['Player'] = prior_year_predictors.Player.str.lower()
