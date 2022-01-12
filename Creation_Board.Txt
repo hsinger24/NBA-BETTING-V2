@@ -13,4 +13,4 @@ Ideas/Things to Quantify
 
 Points of Improvement:
 
-1. VORP predictions
+1. VORP predictions - should we just use one input (538 RAPTOR predictions)?
