@@ -16,11 +16,11 @@ import pickle
 import datetime as dt
 import unidecode
 
-current_year = dt.date.today().year
+current_year = 2022
 
 ########## Functions ########## 
 
-def retrieve_prior_year_vorps(current_year):
+def retreive_prior_year_vorps(current_year):
 
     # Retrieving active rosters 
     # team_dict = retrieve_active_rosters()
@@ -60,7 +60,7 @@ def retrieve_prior_year_vorps(current_year):
 
     return team_vorps
 
-def retrieve_prior_year_point_differential(current_year):
+def retreive_prior_year_point_differential(current_year):
     
     # Possesions table team map for merging
     team_map = {
@@ -130,7 +130,7 @@ def retrieve_prior_year_point_differential(current_year):
 
     return merged
 
-def retrieve_opening_day_roster(current_year):
+def retreive_opening_day_roster(current_year):
     tables = pd.read_html('https://www.lineups.com/nba/depth-charts')
     teams = ['Atlanta Hawks', 'Boston Celtics', 'Brooklyn Nets', 'Charlotte Hornets',
             'Chicago Bulls', 'Cleveland Cavaliers', 'Dallas Mavericks', 'Denver Nuggets',
@@ -167,7 +167,7 @@ def retrieve_opening_day_roster(current_year):
 
     return team_dict
 
-def retrieve_opening_day_roster_late_start():
+def retreive_opening_day_roster_late_start():
 
     # Teams list to iterate through links
     teams = ['Atlanta-Hawks', 'Boston-Celtics', 'Brooklyn-Nets', 'Charlotte-Hornets', 'Chicago-Bulls', 
@@ -205,7 +205,7 @@ def retrieve_opening_day_roster_late_start():
 
     return team_dict
 
-def retrieve_opening_day_vorp_predictors(current_year):
+def retreive_opening_day_vorp_predictors(current_year):
     
     # Getting predictive advanced stats from the prior year and adjusting columns
     tables = pd.read_html(f'https://www.basketball-reference.com/leagues/NBA_{str(current_year-1)}_advanced.html')
@@ -257,6 +257,10 @@ def retrieve_opening_day_vorp_predictors(current_year):
     
     return player_predictive
 
+def retreive_raptor_predictions(current_year):
+    
+    return
+
 def calculate_vorp_predictions(current_year):
 
     # Retreive opening day rosters
@@ -292,7 +296,7 @@ def calculate_vorp_predictions(current_year):
         if x == 'raulzinho neto':
             return 'raul neto'
         return x
-    prior_year_predictors = retrieve_opening_day_vorp_predictors(current_year)
+    prior_year_predictors = retreive_opening_day_vorp_predictors(current_year)
     prior_year_predictors['Player'] = prior_year_predictors.Player.apply(unidecode.unidecode)
     prior_year_predictors['Player'] = prior_year_predictors.Player.apply(name_adjustment)
     prior_year_predictors['Player'] = prior_year_predictors.Player.str.replace('.', '')
@@ -300,7 +304,7 @@ def calculate_vorp_predictions(current_year):
     prior_year_predictors['Player'] = prior_year_predictors.Player.str.lower()
 
     # Retreiving VORP predictors two years prior
-    two_years_prior_predictors = retrieve_opening_day_vorp_predictors(current_year = 2021)
+    two_years_prior_predictors = retreive_opening_day_vorp_predictors(current_year = 2021)
     two_years_prior_predictors['Player'] = two_years_prior_predictors.Player.apply(unidecode.unidecode)
     two_years_prior_predictors['Player'] = two_years_prior_predictors.Player.apply(name_adjustment)
     two_years_prior_predictors['Player'] = two_years_prior_predictors.Player.str.replace('.', '')

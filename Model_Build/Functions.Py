@@ -272,3 +272,46 @@ def calculate_vorp_projection_equation(save = False):
 
     return model
 
+def calculate_vorp_raptor_equation(save = False):
+
+    # Obtaining historical RAPTOR data
+    raptor_df = pd.read_csv('Model_Build/Data/raptor_data.csv', index_col = 0)
+
+    # Obtaining historical VORP data
+    years = [2019, 2018, 2017, 2016, 2015, 2014]
+    vorp_df = pd.DataFrame(columns = ['Player', 'VORP', 'Year'])
+    for year in years:
+        # Getting VORP for a given year
+        tables = pd.read_html(f'https://www.basketball-reference.com/leagues/NBA_{str(year)}_advanced.html')
+        table = tables[0]
+        table = table[['Player', 'Tm', 'VORP']]
+        table.columns = ['Player', 'Team', 'VORP']
+        table = table[table.Team != 'Tm']
+        table['VORP'] = table.VORP.apply(pd.to_numeric)
+        player_vorp = table.groupby('Player')['VORP'].sum()
+        player_vorp = pd.DataFrame(player_vorp)
+        player_vorp.reset_index(drop = False, inplace = True)
+        player_vorp.columns = ['Player', 'VORP']
+        player_vorp['Year'] = year
+        vorp_df = vorp_df.append(player_vorp)
+    
+    # Combining VORP and RAPTOR data
+    combined_df = pd.merge(raptor_df, vorp_df, on = ['Player', 'Year'], how = 'inner')
+
+    # Running regression
+    x = combined_df[['RAPTOR']]
+    y = combined_df.VORP
+    model = LinearRegression()
+    model.fit(x,y)
+    # r_squared = model.score(x,y)
+    # print('The y-intercept is: ', model.intercept_)
+    # print('The slope is: ', model.coef_)
+    # print('The r-squared is: ', r_squared)
+
+    # Saving regression
+    if save:
+        file_name = 'Model_Build/Data/predict_vorp_regression.pickle'
+        with open(file_name, 'wb') as f:
+            pickle.dump(model, f)
+
+    return model
