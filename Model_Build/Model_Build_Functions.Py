@@ -1,3 +1,5 @@
+##########IMPORTS##########
+
 import pandas as pd
 import numpy as np
 from selenium import webdriver
@@ -11,6 +13,8 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.action_chains import ActionChains
 from sklearn.linear_model import LinearRegression
 import pickle
+
+##########FUNCTION CREATION FUNCTIONS##########
 
 def calculate_point_differential_win_pct_equation(save = False):
     
@@ -297,6 +301,8 @@ def calculate_vorp_raptor_equation(save = False):
     
     # Combining VORP and RAPTOR data
     combined_df = pd.merge(raptor_df, vorp_df, on = ['Player', 'Year'], how = 'inner')
+    combined_df = combined_df[abs(combined_df.VORP) > 0.1]
+    combined_df = combined_df[combined_df.RAPTOR > -5]
 
     # Running regression
     x = combined_df[['RAPTOR']]
@@ -310,8 +316,10 @@ def calculate_vorp_raptor_equation(save = False):
 
     # Saving regression
     if save:
-        file_name = 'Model_Build/Data/predict_vorp_regression.pickle'
+        file_name = 'Model_Build/Data/vorp_raptor_regression.pickle'
         with open(file_name, 'wb') as f:
             pickle.dump(model, f)
 
     return model
+
+##########RUN##########
