@@ -20,6 +20,8 @@ current_year = 2022
 
 ########## Functions ########## 
 
+# Retreieve data from prior year for comparison to opening day
+
 def retreive_prior_year_vorps(current_year):
 
     # Retrieving active rosters 
@@ -130,7 +132,9 @@ def retreive_prior_year_point_differential(current_year):
 
     return merged
 
-def retreive_opening_day_roster(current_year):
+# Retrieve opening day rosters
+
+def retreive_opening_day_roster(current_year, save = False):
     tables = pd.read_html('https://www.lineups.com/nba/depth-charts')
     teams = ['Atlanta Hawks', 'Boston Celtics', 'Brooklyn Nets', 'Charlotte Hornets',
             'Chicago Bulls', 'Cleveland Cavaliers', 'Dallas Mavericks', 'Denver Nuggets',
@@ -164,6 +168,12 @@ def retreive_opening_day_roster(current_year):
                 player = table.iloc[i, j]
                 players = players + [player]
         team_dict[team] = players
+
+    # Saving data
+    if save:
+        file_name = 'In_Season/Data/Opening_Day_Rosters.pickle'
+        with open(file_name, 'wb') as f:
+            pickle.dump(f)
 
     return team_dict
 
@@ -205,7 +215,9 @@ def retreive_opening_day_roster_late_start():
 
     return team_dict
 
-def retreive_opening_day_vorp_predictors(current_year):
+# Retreive predictors for current year VORP
+
+def retreive_vorp_predictors(current_year, save = False):
     
     # Getting predictive advanced stats from the prior year and adjusting columns
     tables = pd.read_html(f'https://www.basketball-reference.com/leagues/NBA_{str(current_year-1)}_advanced.html')
@@ -252,14 +264,57 @@ def retreive_opening_day_vorp_predictors(current_year):
         player_predictive['BPM'] = player_predictive.BPM * (82/72)
 
     # Saving data
-    # file_name = 'In_Season/Data/vorp_predictive_data.csv'
-    # player_predictive.to_csv(file_name)
+    if save:
+        file_name = 'In_Season/Data/vorp_predictive_data.csv'
+        player_predictive.to_csv(file_name)
     
     return player_predictive
 
-def retreive_raptor_predictions(current_year):
+def retreive_raptor_predictions(current_year, save = False):
     
-    return
+    # Instantiating list of teams to iterate through
+    teams = ['76ers', 'bucks', 'bulls', 'cavaliers', 'celtics', 'clippers',
+        'grizzlies', 'hawks', 'heat', 'hornets', 'jazz', 'kings',
+        'knicks', 'lakers', 'magic', 'mavericks', 'nets', 'nuggets',
+        'pacers', 'pelicans', 'pistons', 'raptors', 'rockets', 'spurs',
+        'suns', 'thunder', 'timberwolves', 'trail-blazers', 'warriors', 'wizards']
+    
+    # Iterating through each team and appending to overall dataframe
+    df = pd.DataFrame(columns = ['Player', 'RAPTOR'])
+    for team in teams:
+        tables = pd.read_html(f'https://projects.fivethirtyeight.com/{current_year}-nba-predictions/{team}/')
+        table = tables[0]
+        table.columns = table.columns.droplevel(0)
+        table = table[['Player', 'Off. +/-', 'Def. +/-']]
+        table.columns = ['Player', 'Offensive_Rating', 'Defensive_Rating']
+
+        # Getting rid of rows that don't have player data
+        good_rows = []
+        for index, row in table.iterrows():
+            try:
+                table.loc[index, 'Offensive_Rating'] = float(row.Offensive_Rating)
+                table.loc[index, 'Defensive_Rating'] = float(row.Defensive_Rating)
+                good_rows.append(index)
+            except:
+                pass
+        table = table.loc[good_rows, :]
+
+        # Adding overall RAPTOR column and appending to df  
+
+        table['RAPTOR'] = table.Offensive_Rating + table.Defensive_Rating
+        table = table[['Player', 'RAPTOR']]
+        df = df.append(table)
+
+    df.reset_index(drop = True, inplace = True)
+    
+    # Saving df as CSV
+    if save:
+        file_name = 'In_Season/Data/raptor_predictions.csv'
+        df.to_csv(file_name)
+
+    return df
+
+# Calculate VORP prediction for current year 
 
 def calculate_vorp_predictions(current_year):
 
