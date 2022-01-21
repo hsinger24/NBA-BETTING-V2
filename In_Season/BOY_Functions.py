@@ -22,7 +22,7 @@ current_year = 2022
 
 # Retreieve data from prior year for comparison to opening day
 
-def retreive_prior_year_vorps(current_year):
+def retreive_prior_year_vorps(current_year, save = False):
 
     # Retrieving active rosters 
     # team_dict = retrieve_active_rosters()
@@ -57,12 +57,13 @@ def retreive_prior_year_vorps(current_year):
     #     team_vorps = team_vorps.append(vorp_series, ignore_index = True)
     
     #Save to data file
-    file_path = 'In_Season/Data/prior_year_vorps.csv'
-    team_vorps.to_csv(file_path)
+    if save:
+        file_path = 'In_Season/Data/prior_year_vorps.csv'
+        team_vorps.to_csv(file_path)
 
     return team_vorps
 
-def retreive_prior_year_point_differential(current_year):
+def retreive_prior_year_point_differential(current_year, save = False):
     
     # Possesions table team map for merging
     team_map = {
@@ -127,8 +128,9 @@ def retreive_prior_year_point_differential(current_year):
     merged['Adjusted_Win_Pct'] = model.predict(x)
 
     # Saving to data folder
-    file_path = 'In_Season/Data/prior_year_adjusted_win_pct'
-    merged.to_csv(file_path)
+    if save:
+        file_path = 'In_Season/Data/prior_year_adjusted_win_pct'
+        merged.to_csv(file_path)
 
     return merged
 
@@ -314,9 +316,9 @@ def retreive_raptor_predictions(current_year, save = False):
 
     return df
 
-# Calculate VORP prediction for current year 
+# Calculate VORP prediction for current year based on opening day rosters
 
-def calculate_vorp_predictions(current_year):
+def calculate_vorp_predictions(current_year, save = False):
 
     # Retreive opening day rosters
     file_name = 'In_Season/Data/opening_day_rosters.pickle'
@@ -429,10 +431,18 @@ def calculate_vorp_predictions(current_year):
 
             # Looking at rookies' raptor predictors to predict VORP
             if service == 0:
+
+                # Formatting player strings
+                player = player.lower()
+                player = player.replace("'", '')
+                player = player.replace('.', '')
+                player = player.strip('*')
+
+                # Calculating predicted VORP or adding to missed players
                 predictors = raptor_predictions[raptor_predictions.Player == player]
                 if len(predictors) > 0:
                     predictors = predictors[['RAPTOR']]
-                    vorp_prediction = model_raptor.predictor(predictors)
+                    vorp_prediction = model_raptor.predict(predictors)
                     team_vorp += vorp_prediction
                 else:
                     missed_rookies.append(team + ': ' + player)
@@ -441,9 +451,30 @@ def calculate_vorp_predictions(current_year):
         series = pd.Series([team, team_vorp], index = vorps.columns)
         vorps = vorps.append(series, ignore_index = True)
 
+    # Savings opening day VORPs DF
+    if save:
+        file_name = 'In_Season/Data/opening_day_vorps.csv'
+        vorps.to_csv(file_name)
+
     return vorps, missed_players, missed_rookies
+
+# Calculate BOY win pct prediction for
+
+def calculate_opening_day_win_pct(current_year, save = False):
+
+    # Import necessary inputs
+    prior_year_vorps = pd.read_csv('In_Season/Data/prior_year_vorps.csv')
+    predicted_vorps = pd.read_csv('In_Season/Data/opening_day_vorps.csv')
+
+    file_name = 'In_Season/Data/prior_year_adjusted_win_pct.pickle'
+    with open(file_name, 'rb') as f:
+        prior_year_differential = pickle.load(f)
+    
+
+
+
+    return
 
 ########## Run ########## 
 
-vorps, missed_players, missed_rookies = calculate_vorp_predictions(current_year = current_year)
-print(missed_rookies)
+vorps, missed_players, missed_rookies = calculate_vorp_predictions(current_year = current_year, save = True)
