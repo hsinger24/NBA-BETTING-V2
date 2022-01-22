@@ -129,7 +129,7 @@ def retreive_prior_year_point_differential(current_year, save = False):
 
     # Saving to data folder
     if save:
-        file_path = 'In_Season/Data/prior_year_adjusted_win_pct'
+        file_path = 'In_Season/Data/prior_year_adjusted_win_pct.csv'
         merged.to_csv(file_path)
 
     return merged
@@ -473,8 +473,10 @@ def calculate_opening_day_win_pct(current_year, save = False):
 
 
 
-    return
+    return prior_year_differential
 
 ########## Run ########## 
 
-vorps, missed_players, missed_rookies = calculate_vorp_predictions(current_year = current_year, save = True)
+# print(calculate_opening_day_win_pct(current_year))
+
+retreive_prior_year_point_differential(current_year, save = True)
