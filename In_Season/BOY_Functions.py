@@ -34,14 +34,15 @@ def retreive_prior_year_vorps(current_year, save = False):
     table = table[['Player', 'Tm', 'VORP']]
     table.columns = ['Player', 'Team', 'VORP']
     table = table[table.Team != 'Tm']
-    table.Team.unique()
+    table = table[table.Team != 'TOT']
     table['VORP'] = table.VORP.apply(pd.to_numeric)
     player_vorp = table.groupby('Team')['VORP'].sum()
     player_vorp = pd.DataFrame(player_vorp)
     player_vorp.reset_index(drop = False, inplace = True)
     player_vorp.columns = ['Team', 'VORP']
     team_vorps = player_vorp
-    team_vorps['VORP'] = team_vorps.VORP * (82/72)
+    if current_year == 2022:
+        team_vorps['VORP'] = team_vorps.VORP * (82/72)
 
     # # Aggregating team VORPs
     # team_vorps = pd.DataFrame(columns = ['Team', 'Prior_Year_Vorp'])
@@ -462,21 +463,94 @@ def calculate_vorp_predictions(current_year, save = False):
 
 def calculate_opening_day_win_pct(current_year, save = False):
 
-    # Import necessary inputs
-    prior_year_vorps = pd.read_csv('In_Season/Data/prior_year_vorps.csv')
-    predicted_vorps = pd.read_csv('In_Season/Data/opening_day_vorps.csv')
+    # Team Map for predicted vorps DF
+    team_map = {
+        'ATL' : 'Atlanta Hawks',
+        'BOS' : 'Boston Celtics',
+        'BRK' : 'Brooklyn Nets',
+        'CHI' : 'Chicago Bulls',
+        'CHO' : 'Charlotte Hornets',
+        'CLE' : 'Cleveland Cavaliers',
+        'DAL' : 'Dallas Mavericks',
+        'DEN' : 'Denver Nuggets',
+        'DET' : 'Detroit Pistons',
+        'GSW' : 'Golden State Warriors',
+        'HOU' : 'Houston Rockets',
+        'IND' : 'Indiana Pacers',
+        'LAC' : 'Los Angeles Clippers',
+        'LAL' : 'Los Angeles Lakers',
+        'MEM' : 'Memphis Grizzlies',
+        'MIA' : 'Miami Heat',
+        'MIL' : 'Milwaukee Bucks',
+        'MIN' : 'Minnesota Timberwolves',
+        'NOP' : 'New Orleans Pelicans',
+        'NYK' : 'New York Knicks',
+        'OKC' : 'Oklahoma City Thunder',
+        'ORL' : 'Orlando Magic',
+        'PHI' : 'Philadelphia 76ers',
+        'PHO' : 'Phoenix Suns',
+        'POR' : 'Portland Trail Blazers',
+        'SAC' : 'Sacramento Kings',
+        'SAS' : 'San Antonio Spurs',
+        'TOR' : 'Toronto Raptors',
+        'UTA' : 'Utah Jazz',
+        'WAS' : 'Washington Wizards'
+    }
 
-    file_name = 'In_Season/Data/prior_year_adjusted_win_pct.pickle'
-    with open(file_name, 'rb') as f:
-        prior_year_differential = pickle.load(f)
+    # Function to change Sixers name for predicted_vorps table
+    def sixers_change(x):
+        if x == 'Philadelphia Sixers':
+            return "Philadelphia 76ers"
+        else:
+            return x
     
+    # Importing necesary prediction models
+    file_name = 'Model_Build/Data/vorp_regression.pickle'
+    with open(file_name, 'rb') as f:
+        vorp_pt_model = pickle.load(f)
+    
+    file_name = 'Model_Build/Data/win_pct_regression.pickle'
+    with open(file_name, 'rb') as f:
+        point_win_pct_model = pickle.load(f)
 
+    # Import necessary data and aligning team names
+    prior_year_vorps = pd.read_csv('In_Season/Data/prior_year_vorps.csv', index_col = 0)
+    prior_year_vorps = prior_year_vorps[prior_year_vorps.Team != 'TOT']
+    prior_year_vorps['Team'] = prior_year_vorps.Team.apply(lambda x: team_map[x])
 
+    predicted_vorps = pd.read_csv('In_Season/Data/opening_day_vorps.csv', index_col = 0)
+    predicted_vorps['Team'] = predicted_vorps.Team.apply(sixers_change)
 
-    return prior_year_differential
+    prior_year_differential = pd.read_csv('In_Season/Data/prior_year_adjusted_win_pct.csv', index_col = 0)
+
+    # Merging and adjusting column names
+    merged_1 = pd.merge(prior_year_vorps, predicted_vorps, on = 'Team')
+    merged_1.columns = ['Team', 'Prior_Year_VORP', 'VORP_Projection']
+
+    df = pd.merge(merged_1, prior_year_differential, on = 'Team')
+    df = df[['Team', 'Prior_Year_VORP', 'VORP_Projection', 'Adj_Point_Differential_82']]
+    df.columns = ['Team', 'Prior_Year_VORP', 'VORP_Projection', 'Prior_Year_Differential']
+
+    # Fixing VORP projection column from string to float
+    df['VORP_Projection'] = df.VORP_Projection.apply(lambda x: float(x.strip("'[]")) if type(x) == str else x)
+
+    # Calculating point adjustment based on VORP differential
+    df['VORP_Difference'] = df.VORP_Projection - df.Prior_Year_VORP
+    coefficient = vorp_pt_model.coef_[0]
+    df['Point_Adjustment'] = coefficient * df.VORP_Difference
+
+    # Calculating projected win % based on projected point differential
+    df['Projected_Point_Differential'] = df.Prior_Year_Differential + df.Point_Adjustment
+    x = df[['Projected_Point_Differential']]
+    df['Projected_Win_Pct'] = point_win_pct_model.predict(x)
+
+    # Saving
+    if save:
+        file_name = 'In_Season/Data/BOY_projected_win_pct.csv'
+        df.to_csv(file_name)
+
+    return df
 
 ########## Run ########## 
 
-# print(calculate_opening_day_win_pct(current_year))
-
-retreive_prior_year_point_differential(current_year, save = True)
+calculate_opening_day_win_pct(current_year, save = True)
