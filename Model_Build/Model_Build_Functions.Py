@@ -305,17 +305,16 @@ def calculate_vorp_raptor_equation(save = False):
     combined_df = pd.merge(raptor_df, vorp_df, on = ['Player', 'Year'], how = 'inner')
     combined_df = combined_df[abs(combined_df.VORP) > 0.1]
     combined_df = combined_df[combined_df.RAPTOR > -5]
-    combined_df['RAPTOR_squared'] = combined_df.RAPTOR**2
 
     # Running regression
-    x = combined_df[['RAPTOR', 'RAPTOR_squared']]
+    x = combined_df[['RAPTOR']]
     y = combined_df.VORP
     model = LinearRegression()
     model.fit(x,y)
-    # r_squared = model.score(x,y)
+    r_squared = model.score(x,y)
     # print('The y-intercept is: ', model.intercept_)
     # print('The slope is: ', model.coef_)
-    # print('The r-squared is: ', r_squared)
+    print('The r-squared is: ', r_squared)
 
     # Saving regression
     if save:
@@ -327,3 +326,4 @@ def calculate_vorp_raptor_equation(save = False):
 
 ##########RUN##########
 
+calculate_vorp_raptor_equation(save = False)
