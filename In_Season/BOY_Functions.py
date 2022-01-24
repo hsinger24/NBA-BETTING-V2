@@ -232,6 +232,7 @@ def retreive_vorp_predictors(current_year, save = False):
                 'TRB%', 'AST%', 'STL%', 'BLK%', 'TOV%', 'USG%', 'OWS', 'DWS', 'WS', 'WS/48',
                 'OBPM', 'DBPM', 'BPM', 'VORP_Prior_Year']
     table = table[table.Team != 'Tm']
+    table = table[table.Team!='TOT']
     columns = ['Age', 'G', 'MP', 'PER', 'TS%', '3PAr', 'FTr', 'ORB%', 'DRB%', 
                 'TRB%', 'AST%', 'STL%', 'BLK%', 'TOV%', 'USG%', 'OWS', 'DWS', 'WS', 'WS/48',
                 'OBPM', 'DBPM', 'BPM', 'VORP_Prior_Year']
@@ -476,7 +477,7 @@ def calculate_vorp_predictions(current_year, save = False):
 
     return vorps, team_vorp_df_dict, missed_players, missed_rookies
 
-# Calculate BOY win pct prediction for
+# Calculate BOY win pct prediction
 
 def calculate_opening_day_win_pct(current_year, save = False):
 
@@ -570,4 +571,4 @@ def calculate_opening_day_win_pct(current_year, save = False):
 
 ########## Run ########## 
 
-retreive_opening_day_roster(current_year, save = True)
+retreive_raptor_predictions(current_year, save = True)

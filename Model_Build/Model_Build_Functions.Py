@@ -163,6 +163,7 @@ def calculate_vorp_win_pct_equation(merged, save = False):
         table = table[['Player', 'Tm', 'VORP']]
         table.columns = ['Player', 'Team', 'VORP']
         table = table[table.Team != 'Tm']
+        table = table[table.Team!='TOT']
         table['Team'] = table.Team.apply(lambda x: team_map[x])
         table['VORP'] = table.VORP.apply(pd.to_numeric)
         team_vorp = table.groupby('Team')['VORP'].sum()
@@ -212,7 +213,7 @@ def calculate_vorp_projection_equation(save = False):
         table = table[['Player', 'Tm', 'VORP']]
         table.columns = ['Player', 'Team', 'VORP']
         table = table[table.Team != 'Tm']
-        table.Team.unique()
+        table = table[table.Team!='TOT']
         table['VORP'] = table.VORP.apply(pd.to_numeric)
         player_vorp = table.groupby('Player')['VORP'].sum()
         player_vorp = pd.DataFrame(player_vorp)
@@ -291,6 +292,7 @@ def calculate_vorp_raptor_equation(save = False):
         table = table[['Player', 'Tm', 'VORP']]
         table.columns = ['Player', 'Team', 'VORP']
         table = table[table.Team != 'Tm']
+        table = table[table.Team!='TOT']
         table['VORP'] = table.VORP.apply(pd.to_numeric)
         player_vorp = table.groupby('Player')['VORP'].sum()
         player_vorp = pd.DataFrame(player_vorp)
@@ -303,9 +305,10 @@ def calculate_vorp_raptor_equation(save = False):
     combined_df = pd.merge(raptor_df, vorp_df, on = ['Player', 'Year'], how = 'inner')
     combined_df = combined_df[abs(combined_df.VORP) > 0.1]
     combined_df = combined_df[combined_df.RAPTOR > -5]
+    combined_df['RAPTOR_squared'] = combined_df.RAPTOR**2
 
     # Running regression
-    x = combined_df[['RAPTOR']]
+    x = combined_df[['RAPTOR', 'RAPTOR_squared']]
     y = combined_df.VORP
     model = LinearRegression()
     model.fit(x,y)
@@ -324,4 +327,3 @@ def calculate_vorp_raptor_equation(save = False):
 
 ##########RUN##########
 
-calculate_vorp_raptor_equation(save = False)
