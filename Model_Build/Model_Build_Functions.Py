@@ -323,3 +323,5 @@ def calculate_vorp_raptor_equation(save = False):
     return model
 
 ##########RUN##########
+
+calculate_vorp_raptor_equation(save = False)

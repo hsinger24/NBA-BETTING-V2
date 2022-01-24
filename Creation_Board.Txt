@@ -14,3 +14,11 @@ Ideas/Things to Quantify
 Points of Improvement:
 
 1. VORP predictions - should we just use one input (538 RAPTOR predictions)?
+
+Where I left off:
+
+1. Functions: Possibly cutting off bottom player in BOY team VORP predictions?
+2. Functions: look into just using RAPTOR for player prediction
+2. Sandbox: Seeing which VORP prediction model is better
+    1. Prior year: 0.58 r-squared
+    2. RAPTOR: 0.58 r-squared

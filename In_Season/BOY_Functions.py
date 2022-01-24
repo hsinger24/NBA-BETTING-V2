@@ -174,9 +174,9 @@ def retreive_opening_day_roster(current_year, save = False):
 
     # Saving data
     if save:
-        file_name = 'In_Season/Data/Opening_Day_Rosters.pickle'
+        file_name = 'In_Season/Data/opening_day_rosters.pickle'
         with open(file_name, 'wb') as f:
-            pickle.dump(f)
+            pickle.dump(team_dict, f)
 
     return team_dict
 
@@ -383,14 +383,16 @@ def calculate_vorp_predictions(current_year, save = False):
     raptor_predictions = pd.read_csv('In_Season/Data/raptor_predictions.csv')
     raptor_predictions = name_standardization(raptor_predictions)
 
-    # Creating team VORP DF 
+    # Creating team VORP DF and team vorp dictionary
     missed_players = list()
     missed_rookies = list()
     vorps = pd.DataFrame(columns = ['Team', 'VORP_projection'])
+    team_vorp_df_dict = {}
     for key, value in opening_day_rosters.items():
         team = key
         roster = value
         team_vorp = 0
+        team_vorp_df = pd.DataFrame(columns = ['Player', 'VORP'])
         for index, row in roster.iterrows():
             player = row.Player
             service = row.YOS
@@ -415,6 +417,8 @@ def calculate_vorp_predictions(current_year, save = False):
                         'WS/48', 'OBPM', 'DBPM', 'BPM', 'VORP_Prior_Year']]
                     vorp_prediction = model.predict(predictors)[0]
                     team_vorp += vorp_prediction
+                    series = pd.Series([player, vorp_prediction], index = team_vorp_df.columns)
+                    team_vorp_df = team_vorp_df.append(series, ignore_index = True)
                 
                 # Trying two years prior data for missed players
                 if len(predictors) == 0:
@@ -425,10 +429,14 @@ def calculate_vorp_predictions(current_year, save = False):
                             'WS/48', 'OBPM', 'DBPM', 'BPM', 'VORP_Prior_Year']]
                         vorp_prediction = model.predict(predictors)[0]
                         team_vorp += vorp_prediction
+                        series = pd.Series([player, vorp_prediction], index = team_vorp_df.columns)
+                        team_vorp_df = team_vorp_df.append(series, ignore_index = True)
                     
                     # Appending to missed players list  
                     if len(predictors) == 0:
                         missed_players.append(team + ': ' + player)
+                        series = pd.Series([player, 0], index = team_vorp_df.columns)
+                        team_vorp_df = team_vorp_df.append(series, ignore_index = True)
 
             # Looking at rookies' raptor predictors to predict VORP
             if service == 0:
@@ -445,19 +453,28 @@ def calculate_vorp_predictions(current_year, save = False):
                     predictors = predictors[['RAPTOR']]
                     vorp_prediction = model_raptor.predict(predictors)
                     team_vorp += vorp_prediction
+                    series = pd.Series([player, vorp_prediction], index = team_vorp_df.columns)
+                    team_vorp_df = team_vorp_df.append(series, ignore_index = True)
                 else:
                     missed_rookies.append(team + ': ' + player)
+                    series = pd.Series([player, 0], index = team_vorp_df.columns)
+                    team_vorp_df = team_vorp_df.append(series, ignore_index = True)
 
         # Adding team vorp to overall df  
         series = pd.Series([team, team_vorp], index = vorps.columns)
         vorps = vorps.append(series, ignore_index = True)
+
+        # Adding to team vorp dictionary
+        team_vorp_df.sort_values(by = ['VORP'], ascending = False, inplace = True)
+        team_vorp_df.reset_index(drop = True, inplace = True)
+        team_vorp_df_dict[team] = team_vorp_df
 
     # Savings opening day VORPs DF
     if save:
         file_name = 'In_Season/Data/opening_day_vorps.csv'
         vorps.to_csv(file_name)
 
-    return vorps, missed_players, missed_rookies
+    return vorps, team_vorp_df_dict, missed_players, missed_rookies
 
 # Calculate BOY win pct prediction for
 
@@ -553,4 +570,4 @@ def calculate_opening_day_win_pct(current_year, save = False):
 
 ########## Run ########## 
 
-calculate_opening_day_win_pct(current_year, save = True)
+retreive_opening_day_roster(current_year, save = True)
