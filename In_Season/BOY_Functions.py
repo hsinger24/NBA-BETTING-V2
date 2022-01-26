@@ -514,4 +514,4 @@ def calculate_opening_day_win_pct(current_year, save = False):
 
 ########## Run ########## 
 
-print(calculate_opening_day_win_pct(current_year, save = False))
+calculate_opening_day_win_pct(current_year, save = True)
