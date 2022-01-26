@@ -450,7 +450,7 @@ def calculate_opening_day_win_pct(current_year, save = False):
         'ORL' : 'Orlando Magic',
         'PHI' : 'Philadelphia 76ers',
         'PHO' : 'Phoenix Suns',
-        'POR' : 'Portland Trail Blazers',
+        'POR' : 'Portland Trailblazers',
         'SAC' : 'Sacramento Kings',
         'SAS' : 'San Antonio Spurs',
         'TOR' : 'Toronto Raptors',
@@ -459,9 +459,9 @@ def calculate_opening_day_win_pct(current_year, save = False):
     }
 
     # Function to change Sixers name for predicted_vorps table
-    def sixers_change(x):
-        if x == 'Philadelphia Sixers':
-            return "Philadelphia 76ers"
+    def blazers_change(x):
+        if x == 'Portland Trail Blazers':
+            return "Portland Trailblazers"
         else:
             return x
     
@@ -480,9 +480,9 @@ def calculate_opening_day_win_pct(current_year, save = False):
     prior_year_vorps['Team'] = prior_year_vorps.Team.apply(lambda x: team_map[x])
 
     predicted_vorps = pd.read_csv('In_Season/Data/opening_day_vorps.csv', index_col = 0)
-    predicted_vorps['Team'] = predicted_vorps.Team.apply(sixers_change)
 
     prior_year_differential = pd.read_csv('In_Season/Data/prior_year_adjusted_win_pct.csv', index_col = 0)
+    prior_year_differential['Team'] =prior_year_differential.Team.apply(blazers_change)
 
     # Merging and adjusting column names
     merged_1 = pd.merge(prior_year_vorps, predicted_vorps, on = 'Team')
@@ -514,4 +514,4 @@ def calculate_opening_day_win_pct(current_year, save = False):
 
 ########## Run ########## 
 
-calculate_opening_day_win_pct(current_year, save = True)
+print(calculate_opening_day_win_pct(current_year, save = False))
