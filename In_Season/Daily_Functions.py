@@ -1,3 +1,5 @@
+##########IMPORTS AND PARAMETERS##########
+
 import pandas as pd
 import numpy as np
 from selenium import webdriver
@@ -12,8 +14,13 @@ from selenium.webdriver.common.action_chains import ActionChains
 from sklearn.linear_model import LinearRegression
 import pickle
 
+current_year = 2022
 
-def retrieve_active_rosters():
+##########FUNCTIONS##########
+
+# Retreiving necessary daily information
+
+def retreive_active_rosters():
 
     # Instantiating necessary items
     tables = pd.read_html('https://www.lineups.com/nba/depth-charts')
@@ -52,7 +59,52 @@ def retrieve_active_rosters():
 
     return team_dict
 
-def retrieve_active_rosters_vorp(current_year):
+def retreive_games_played(current_year):
+
+    # Map to change team names
+    games_played_map = {
+        'Milwaukee' : 'Milwaukee Bucks',
+        'Boston' : 'Boston Celtics',
+        'Memphis' : 'Memphis Grizzlies',
+        'LA Clippers' : 'Los Angeles Clippers',
+        'Sacramento' : 'Sacramento Kings',
+        'Indiana' : 'Indiana Pacers',
+        'Golden State' : 'Golden State Warriors',
+        'LA Lakers' : 'Los Angeles Lakers',
+        'San Antonio' : 'San Antonio Spurs',
+        'Utah' : 'Utah Jazz',
+        'Houston' : 'Houston Rockets',
+        'Dallas' : 'Dallas Mavericks',
+        'Charlotte' : 'Charlotte Hornets',
+        'Cleveland' : 'Cleveland Cavaliers',
+        'Orlando' : 'Orlando Magic',
+        'Washington' : 'Washington Wizards',
+        'New York' : 'New York Knicks',
+        'Brooklyn' : 'Brooklyn Nets',
+        'Philadelphia' : 'Philadelphia 76ers',
+        'Minnesota' : 'Minnesota Timberwolves',
+        'Miami' : 'Miami Heat',
+        'New Orleans' : 'New Orleans Pelicans',
+        'Detroit' : 'Detroit Pistons',
+        'Okla City' : 'Oklahoma City Thunder',
+        'Portland' : 'Portland Trailblazers',
+        'Chicago' : 'Chicago Bulls',
+        'Denver' : 'Denver Nuggets',
+        'Phoenix' : 'Phoenix Suns',
+        'Atlanta' : 'Atlanta Hawks',
+        'Toronto' : 'Toronto Raptors'
+    }
+
+    # Reading in table and adjusting columns
+    tables = pd.read_html('https://www.teamrankings.com/nba/stat/games-played')
+    games_played_table = tables[0]
+    games_played_table = games_played_table[['Team', str(current_year - 1)]]
+    games_played_table.columns = ['Team', 'Games_Played']
+    games_played_table['Team'] = games_played_table.Team.apply(lambda x: games_played_map[x])
+
+    return games_played_table
+
+def retreive_active_rosters_vorp(current_year):
     
     # Retrieving active rosters 
     team_dict = retrieve_active_rosters()
@@ -63,16 +115,15 @@ def retrieve_active_rosters_vorp(current_year):
     table = table[['Player', 'Tm', 'VORP']]
     table.columns = ['Player', 'Team', 'VORP']
     table = table[table.Team != 'Tm']
-    table.Team.unique()
+    table = table[table.Team != 'TOT']
     table['VORP'] = table.VORP.apply(pd.to_numeric)
     player_vorp = table.groupby('Player')['VORP'].sum()
     player_vorp = pd.DataFrame(player_vorp)
     player_vorp.reset_index(drop = False, inplace = True)
     player_vorp.columns = ['Player', 'VORP']
-    player_vorp
 
     # Aggregating team VORPs
-    team_vorps = pd.DataFrame(columns = ['Team', 'Prior_Year_Vorp'])
+    team_vorps = pd.DataFrame(columns = ['Team', 'VORP'])
     for team, roster in team_dict.items():
         team_war = 0
         for player in roster:
@@ -86,7 +137,7 @@ def retrieve_active_rosters_vorp(current_year):
 
     return team_vorps
 
-def retrieve_adjusted_point_differetial():
+def retreive_adjusted_point_differetial():
 
     # Possesions table team map for merging
     team_map = {
@@ -142,3 +193,4 @@ def retrieve_adjusted_point_differetial():
     merged['Adj_Point_Differential_82'] = merged.Adj_Point_Differential*(82/merged.Games)
 
     return merged
+
