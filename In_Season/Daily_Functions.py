@@ -107,7 +107,7 @@ def retreive_games_played(current_year):
 def retreive_active_rosters_vorp(current_year):
     
     # Retrieving active rosters 
-    team_dict = retrieve_active_rosters()
+    team_dict = retreive_active_rosters()
 
     # Retrieving current year VORPs
     tables = pd.read_html(f'https://www.basketball-reference.com/leagues/NBA_{str(current_year)}_advanced.html')

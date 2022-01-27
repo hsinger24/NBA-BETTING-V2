@@ -320,7 +320,91 @@ def retreive_raptor_predictions(current_year, save = False):
 
 # Calculate VORP prediction for current year based on opening day rosters
 
-def calculate_vorp_predictions(current_year, save = False):
+def calculate_vorp_predictions_player(current_year, save = False):
+
+    # Retreive opening day rosters
+    file_name = 'In_Season/Data/opening_day_rosters.pickle'
+    with open(file_name, 'rb') as f:
+        opening_day_rosters = pickle.load(f)
+
+    # Retreive RAPTOR-VORP function
+    file_name = 'Model_Build/Data/vorp_raptor_regression.pickle'
+    with open(file_name, 'rb') as f:
+        model = pickle.load(f)
+
+    # Creating functions to adjust names from VORP predictors DF
+    def name_adjustment(x):
+        x = x.split(' ')
+        x = x[0] + ' ' + x[1]      
+        return x
+    def name_exceptions(x):
+        if x == 'cam thomas':
+            return 'cameron thomas'
+        if x == 'herbert jones':
+            return 'herb jones'
+        if x == 'charlie brown':
+            return 'charles brown'
+        if x == 'ish wainright':
+            return 'ishmail wainright'
+        if x == 'enes freedom':
+            return 'enes kanter'
+        return x
+
+    def name_standardization(df):
+
+        # Apply various functions to standardize the names of the players
+        df['Player'] = df.Player.apply(unidecode.unidecode)
+        df['Player'] = df.Player.apply(name_adjustment)
+        df['Player'] = df.Player.str.replace('.', '')
+        df['Player'] = df.Player.str.replace("'", '')
+        df['Player'] = df.Player.str.lower()
+        df['Player'] = df.Player.str.strip('*')
+
+        return df
+
+    # Retreiving RAPTOR predictions  
+    raptor_predictions = pd.read_csv('In_Season/Data/raptor_predictions.csv')
+    raptor_predictions = name_standardization(raptor_predictions)
+
+    # Populating VORP df by iterating through rosters
+    vorps = pd.DataFrame(columns = ['Player', 'VORP_projection'])
+    missed_players = list()
+    for key, value in opening_day_rosters.items():
+        team = key
+        for player in value:
+            
+            player = str(player)
+            if player == 'nan':
+                continue
+            
+            # Formatting player strings
+            player = unidecode.unidecode(player)
+            player = player.lower()
+            player = player.replace("'", '')
+            player = player.replace('.', '')
+            player = player.split(' ')
+            player = player[0] + ' ' + player[1]
+            player = player.strip('*,')
+            player = name_exceptions(player)
+
+            # Calculating predicted VORP or adding to missed players
+            predictors = raptor_predictions[raptor_predictions.Player == player]
+            if len(predictors) == 1:
+                predictors = predictors[['RAPTOR']]
+                vorp_prediction = model.predict(predictors)
+                series = pd.Series([player, vorp_prediction], index = vorps.columns)
+                vorps = vorps.append(series, ignore_index = True)
+            else:
+                missed_players.append(team + ': ' + player)
+
+    # Saving data
+    if save:
+        file_name = 'In_Season/Data/opening_day_vorps_player.csv'
+        vorps.to_csv(file_name)
+    
+    return vorps, missed_players
+
+def calculate_vorp_predictions_team(current_year, save = False):
 
     # Retreive opening day rosters
     file_name = 'In_Season/Data/opening_day_rosters.pickle'
@@ -415,7 +499,7 @@ def calculate_vorp_predictions(current_year, save = False):
     
     # Savings opening day VORPs DF
     if save:
-        file_name = 'In_Season/Data/opening_day_vorps.csv'
+        file_name = 'In_Season/Data/opening_day_vorps_team.csv'
         vorps.to_csv(file_name)
     
     return vorps, team_vorp_df_dict, missed_players
@@ -514,4 +598,5 @@ def calculate_opening_day_win_pct(current_year, save = False):
 
 ########## Run ########## 
 
-calculate_opening_day_win_pct(current_year, save = True)
+calculate_vorp_predictions_player(current_year, save = True)
+
