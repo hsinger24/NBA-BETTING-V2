@@ -13,6 +13,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.action_chains import ActionChains
 from sklearn.linear_model import LinearRegression
 import pickle
+import unidecode
 
 current_year = 2022
 
@@ -137,6 +138,8 @@ def retreive_active_rosters_vorp(current_year):
 
     return team_vorps
 
+# Functions to calculate day's win %
+
 def retreive_adjusted_point_differetial():
 
     # Possesions table team map for merging
@@ -194,3 +197,91 @@ def retreive_adjusted_point_differetial():
 
     return merged
 
+def calculate_current_day_team_vorp(current_year):
+
+    # Calling functions to get necessary info
+    active_rosters = retrieve_active_rosters()
+    games_played_table = retreive_games_played(current_year)
+
+    # Getting overall fraction of season from average of games played table
+    frac_season = np.mean(games_played_table.Games_Played)/82
+
+    # Retreiving BOY projected VORPS
+    boy_vorps = pd.read_csv('In_Season/Data/opening_day_vorps_player.csv', index_col = 0)
+    # Changing Vorp_Projection column to be a float
+    boy_vorps['VORP_projection'] = boy_vorps.VORP_projection.apply(lambda x: float(x.strip('[]')) if type(x)==str else x)
+
+    # Retrieving current year VORPs
+    tables = pd.read_html(f'https://www.basketball-reference.com/leagues/NBA_{str(current_year)}_advanced.html')
+    table = tables[0]
+    table = table[['Player', 'Tm', 'G', 'VORP']]
+    table.columns = ['Player', 'Team', 'Games', 'VORP']
+    table = table[table.Team != 'Tm']
+    table = table[table.Team != 'TOT']
+    table['VORP'] = table.VORP.apply(pd.to_numeric)
+    player_vorp = table.groupby(['Player', 'Games'])['VORP'].sum()
+    player_vorp = pd.DataFrame(player_vorp)
+    player_vorp.reset_index(drop = False, inplace = True)
+    player_vorp.columns = ['Player', 'Games', 'VORP']
+
+    # Adjusting naming conventions of current year VORP table to be consistent w/ BOY vorps
+    table['Player'] = table.Player.str.lower()
+    table['Player'] = table.Player.apply(unidecode.unidecode)
+    table['Player'] = table.Player.str.replace("'", '')
+    table['Player'] = table.Player.str.replace(".", '')
+    table['Player'] = table.Player.apply(lambda x: x.split(' ')[0] + ' ' + x.split(' ')[1])
+    table['Player'] = table.Player.str.strip('*,')
+    table['Player'] = table.Player.apply(name_exceptions)
+
+    # Merging BOY VORPS w/ current VORPs
+    vorp_df = pd.merge(boy_vorps, table, on = 'Player', how = 'inner')
+    vorp_df['Games'] = vorp_df.Games.apply(float)
+    vorp_df.drop_duplicates(subset = ['Player'], inplace = True)
+
+    # Getting each player's current year annualized VORP, adjusting for games played
+    vorp_df['VORP_82'] = 0
+    if frac_season < 0.25:
+        vorp_df['VORP_82'] = vorp_df.VORP_projection
+    if frac_season > 0.25:
+        for index, row in vorp_df.iterrows():
+            if ((frac_season <= 0.5) & (row.Games < 12)):
+                vorp_df.loc[index, 'VORP_82'] = row.VORP_projection
+            elif ((frac_season > 0.5) & (frac_season <= 0.75) & (row.Games < 25)):
+                vorp_df.loc[index, 'VORP_82'] = row.VORP_projection
+            elif ((frac_season > 0.75) & (row.Games < 40)):
+                vorp_df.loc[index, 'VORP_82'] = row.VORP_projection
+            else:
+                games_frac = float(row.Games)/82.0
+                vorp_df.loc[index, 'VORP_82'] = (row.VORP_projection * (1.0 - games_frac)) + (row.VORP * games_frac)
+    
+    # Iterating through active rosters to get active roster annnualized VORP
+    team_vorp_df = pd.DataFrame(columns = ['Team', 'VORP_Today'])
+    missed_players = list()
+    for team, roster in active_rosters.items():
+        team_vorp = 0
+        for player in roster:
+            if str(player) == 'nan':
+                continue
+            
+            # Aligning naming conventions with vorp_df
+            player = player.lower()
+            player = unidecode.unidecode(player)
+            player = player.replace("'", '')
+            player = player.replace(".", '')
+            player = player.split(' ')[0] + ' ' + player.split(' ')[1]
+            player.strip('*,')
+            player = name_exceptions(player)
+            
+            # Adding player's VORP to team VORP total
+            player_vorp = vorp_df[vorp_df.Player == player]
+            if len(player_vorp == 1):
+                vorp = sum(player_vorp.VORP_82)
+                team_vorp += vorp
+            else:
+                missed_players.append(player)
+        
+        # Adding team's VORP to overall VORP df
+        series = pd.Series([team, team_vorp], index = team_vorp_df.columns)
+        team_vorp_df = team_vorp_df.append(series, ignore_index = True)
+
+    return team_vorp_df, missed_players
