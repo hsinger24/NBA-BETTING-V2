@@ -14,6 +14,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 from sklearn.linear_model import LinearRegression
 import pickle
 import unidecode
+import time
 
 current_year = 2022
 
@@ -24,7 +25,12 @@ current_year = 2022
 def retreive_active_rosters():
 
     # Instantiating necessary items
-    tables = pd.read_html('https://www.lineups.com/nba/depth-charts')
+    driver = webdriver.Chrome(ChromeDriverManager().install())
+    driver.get('https://www.lineups.com/nba/depth-charts')
+    driver.refresh()
+    time.sleep(5)
+    html = driver.page_source
+    tables = pd.read_html(html)
     teams = ['Atlanta Hawks', 'Boston Celtics', 'Brooklyn Nets', 'Charlotte Hornets',
             'Chicago Bulls', 'Cleveland Cavaliers', 'Dallas Mavericks', 'Denver Nuggets',
             'Detroit Pistons', 'Golden State Warriors', 'Houston Rockets', 'Indiana Pacers',
@@ -39,6 +45,10 @@ def retreive_active_rosters():
             if len(names) == 4:
                 name = names[0] + ' ' + names[1]
             if len(names) == 6:
+                name = names[0] + ' ' + names[1] + ' ' + names[2]
+            if len(names) == 5:
+                name = names[0] + ' ' + names[1]
+            if len(names) == 7:
                 name = names[0] + ' ' + names[1] + ' ' + names[2]
         except:
             name = x
@@ -200,7 +210,7 @@ def retreive_adjusted_point_differetial():
 def calculate_current_day_team_vorp(current_year):
 
     # Calling functions to get necessary info
-    active_rosters = retrieve_active_rosters()
+    active_rosters = retreive_active_rosters()
     games_played_table = retreive_games_played(current_year)
 
     # Getting overall fraction of season from average of games played table
@@ -225,6 +235,19 @@ def calculate_current_day_team_vorp(current_year):
     player_vorp.columns = ['Player', 'Games', 'VORP']
 
     # Adjusting naming conventions of current year VORP table to be consistent w/ BOY vorps
+    def name_exceptions(x):
+        if x == 'cam thomas':
+            return 'cameron thomas'
+        if x == 'herbert jones':
+            return 'herb jones'
+        if x == 'charlie brown':
+            return 'charles brown'
+        if x == 'ish wainright':
+            return 'ishmail wainright'
+        if x == 'enes freedom':
+            return 'enes kanter'
+        return x
+    
     table['Player'] = table.Player.str.lower()
     table['Player'] = table.Player.apply(unidecode.unidecode)
     table['Player'] = table.Player.str.replace("'", '')
@@ -285,3 +308,6 @@ def calculate_current_day_team_vorp(current_year):
         team_vorp_df = team_vorp_df.append(series, ignore_index = True)
 
     return team_vorp_df, missed_players
+
+team_vorp_df, missed_players = calculate_current_day_team_vorp(current_year)
+print(team_vorp_df)
