@@ -326,4 +326,4 @@ def calculate_vorp_raptor_equation(save = False):
 
 ##########RUN##########
 
-calculate_vorp_raptor_equation(save = False)
+calculate_vorp_raptor_equation(save = True)
