@@ -1,5 +1,6 @@
 ##########IMPORTS AND PARAMETERS##########
 
+# Imports 
 import pandas as pd
 import numpy as np
 from selenium import webdriver
@@ -15,8 +16,15 @@ from sklearn.linear_model import LinearRegression
 import pickle
 import unidecode
 import time
+import datetime as dt
 
-current_year = 2022
+# Setting current year parameters
+today = dt.date.today()
+today_month = today.month
+if (today_month > 7):
+    current_year = today.year + 1
+else:
+    current_year = today.year
 
 ##########FUNCTIONS##########
 
@@ -214,7 +222,7 @@ def calculate_current_day_team_vorp(current_year):
     games_played_table = retreive_games_played(current_year)
 
     # Getting overall fraction of season from average of games played table
-    frac_season = np.mean(games_played_table.Games_Played)/82
+    frac_season = np.mean(games_played_table.Games_Played)/82.0
 
     # Retreiving BOY projected VORPS
     boy_vorps = pd.read_csv('In_Season/Data/opening_day_vorps_player.csv', index_col = 0)
@@ -307,7 +315,62 @@ def calculate_current_day_team_vorp(current_year):
         series = pd.Series([team, team_vorp], index = team_vorp_df.columns)
         team_vorp_df = team_vorp_df.append(series, ignore_index = True)
 
-    return team_vorp_df, missed_players
+    return team_vorp_df, missed_players, frac_season
 
-team_vorp_df, missed_players = calculate_current_day_team_vorp(current_year)
-print(team_vorp_df)
+def calculate_current_day_win_pct(team_vorp_df, frac_season):
+
+    # Retreiving necessary inputs
+    boy_win_pct_df = pd.read_csv('In_Season/Data/BOY_projected_win_pct.csv', index_col = 0)
+    boy_win_pct_df = boy_win_pct_df[['Team', 'Projected_Point_Differential', 'VORP_Projection']]
+
+    point_diff_df = retreive_adjusted_point_differetial()
+    point_diff_df = point_diff_df[['Team', 'Adj_Point_Differential_82', 'Games']]
+    for index, row in point_diff_df.iterrows():
+        if row.Team == 'Portland Trail Blazers':
+            point_diff_df.loc[index, 'Team'] = 'Portland Trailblazers'
+    
+    # Retreiving VORP/point model
+    file_name = 'Model_Build/Data/vorp_regression.pickle'
+    with open(file_name, 'rb') as f:
+        model = pickle.load(f)
+    
+    # Retreiving point/win_pct model
+    file_name = 'Model_Build/Data/win_pct_regression.pickle'
+    with open(file_name, 'rb') as f:
+        win_pct_model = pickle.load(f)
+
+    # Merging tables
+    merged_1 = pd.merge(point_diff_df, team_vorp_df, on = 'Team')
+    merged_2 = pd.merge(merged_1, boy_win_pct_df, on = 'Team')
+
+    # Calculating team's point differential considering inputs
+    merged_2['Point_Differential'] = 0
+    if frac_season < 0.25:
+        merged_2['Point_Differential'] = merged_2.Projected_Point_Differential
+    else:
+        merged_2['Point_Differential'] = merged_2.Projected_Point_Differential * (1 - merged_2.Games/82.0)\
+            + merged_2.Adj_Point_Differential_82 * merged_2.Games/82.0
+
+    # Making adjustment for VORP
+    merged_2['VORP_Adjustment'] = 0
+    for index, row in merged_2.iterrows():
+        vorp_difference = row.VORP_Today - row.VORP_Projection
+        merged_2.loc[index, 'VORP_Adjustment'] = model.coef_ * vorp_difference
+    
+    merged_2['Point_Differential_Final'] = merged_2.Point_Differential + merged_2.VORP_Adjustment
+
+    # Adding projected win % column
+    merged_2['Projected_Win_Pct'] = 0
+    for index, row in merged_2.iterrows():
+        x = merged_2[merged_2.Team == row.Team]
+        x = x[['Point_Differential_Final']]
+        merged_2.loc[index, 'Projected_Win_Pct'] = win_pct_model.predict(x)
+
+    return merged_2
+
+##########RUN################
+
+team_vorp_df, missed_players, frac_season = calculate_current_day_team_vorp(current_year)
+print(missed_players)
+projected_win_pct_table = calculate_current_day_win_pct(team_vorp_df, frac_season)
+print(projected_win_pct_table)
