@@ -123,6 +123,108 @@ def retreive_games_played(current_year):
 
     return games_played_table
 
+def retreive_todays_games():
+
+    # Creating teamp map to change scraped team names to align with VORPS
+    team_map_schedule = {
+        'L.A. Lakers' : 'Los Angeles Lakers',
+        'L.A. Clippers' : 'Los Angeles Clippers',
+        'Portland' : 'Portland Trailblazers',
+        'Cleveland' : 'Cleveland Cavaliers',
+        'Denver' : 'Denver Nuggets',
+        'Dallas' : 'Dallas Mavericks',
+        'Utah' : 'Utah Jazz',
+        'San Antonio' : 'San Antonio Spurs',
+        'Atlanta' : 'Atlanta Hawks',
+        'Charlotte' : 'Charlotte Hornets',
+        'Chicago' : 'Chicago Bulls',
+        'Detroit' : 'Detroit Pistons',
+        'Milwaukee' : 'Milwaukee Bucks',
+        'Orlando' : 'Orlando Magic',
+        'Minnesota' : 'Minnesota Timberwolves',
+        'Phoenix' : 'Phoenix Suns',
+        'Boston' : 'Boston Celtics',
+        'Indiana' : 'Indiana Pacers',
+        'Sacramento' : 'Sacramento Kings',
+        'Toronto' : 'Toronto Raptors',
+        'Washington' : 'Washington Wizards',
+        'Brooklyn' : 'Brooklyn Nets',
+        'New Orleans' : 'New Orleans Pelicans',
+        'Dallas' : 'Dallas Mavericks',
+        'Philadelphia' : 'Philadelphia 76ers',
+        'Miami' : 'Miami Heat',
+        'Memphis' : 'Memphis Grizzlies',
+        'Golden St.' : 'Golden State Warriors',
+        'New York' : 'New York Knicks',
+        'Houston' : 'Houston Rockets',
+        'Oklahoma City' : 'Oklahoma City Thunder'
+    }
+
+    # Instantiating selenium driver
+    link = 'https://www.cbssports.com/nba/schedule/'
+    driver = webdriver.Chrome(ChromeDriverManager().install())
+    driver.get(link)
+
+    # Getting table for today's games and formatting
+    html = driver.page_source
+    tables = pd.read_html(html)
+    today_schedule = tables[1]
+    today_schedule = today_schedule[['Away', 'Home']]
+    today_schedule['Away'] = today_schedule.Away.apply(lambda x: team_map_schedule[x])
+    today_schedule['Home'] = today_schedule.Home.apply(lambda x: team_map_schedule[x])
+
+    # Getting table for yesterday's games and formatting
+    day_buttons = driver.find_elements_by_class_name("ToggleContainer-text")
+    yesterday = day_buttons[0]
+    yesterday.click()
+    time.sleep(5)
+    html_yesterday = driver.page_source
+    tables_yesterday = pd.read_html(html_yesterday)
+    yesterday_schedule = tables_yesterday[1]
+    yesterday_schedule = yesterday_schedule[['Away', 'Home']]
+    try:
+        yesterday_schedule['Away'] = yesterday_schedule.Away.apply(lambda x: team_map_schedule[x])
+        yesterday_schedule['Home'] = yesterday_schedule.Home.apply(lambda x: team_map_schedule[x])
+    except:
+        pass
+
+    # Getting table for tomorrow's games and formatting
+    day_buttons = driver.find_elements_by_class_name("ToggleContainer-text")
+    today = day_buttons[2]
+    today.click()
+    time.sleep(2)
+    day_buttons = driver.find_elements_by_class_name("ToggleContainer-text")
+    tomorrow = day_buttons[2]
+    tomorrow.click()
+    time.sleep(5)
+    html_tomorrow = driver.page_source
+    tables_tomorrow = pd.read_html(html_tomorrow)
+    tomorrow_schedule = tables_tomorrow[1]
+    tomorrow_schedule = tomorrow_schedule[['Away', 'Home']]
+    try:
+        tomorrow_schedule['Away'] = tomorrow_schedule.Away.apply(lambda x: team_map_schedule[x])
+        tomorrow_schedule['Home'] = tomorrow_schedule.Home.apply(lambda x: team_map_schedule[x])
+    except:
+        pass
+
+    # Creating B2B columns for today's today's schedule 
+    today_schedule['is_B2B_First_Away'] = today_schedule.Away.apply(lambda x: 1 if x in 
+                                                                list(tomorrow_schedule.Away.unique()) + list(tomorrow_schedule.Home.unique())
+                                                               else 0)
+    today_schedule['is_B2B_First_Home'] = today_schedule.Home.apply(lambda x: 1 if x in 
+                                                                    list(tomorrow_schedule.Away.unique()) + list(tomorrow_schedule.Home.unique())
+                                                                else 0)
+    today_schedule['is_B2B_Second_Away'] = today_schedule.Away.apply(lambda x: 1 if x in 
+                                                                    list(yesterday_schedule.Away.unique()) + list(yesterday_schedule.Home.unique())
+                                                                else 0)
+    today_schedule['is_B2B_Second_Home'] = today_schedule.Home.apply(lambda x: 1 if x in 
+                                                                    list(yesterday_schedule.Away.unique()) + list(yesterday_schedule.Home.unique())
+                                                                else 0)
+
+    return today_schedule
+
+# Functions to calculate day's win %
+
 def retreive_active_rosters_vorp(current_year):
     
     # Retrieving active rosters 
@@ -155,8 +257,6 @@ def retreive_active_rosters_vorp(current_year):
         team_vorps = team_vorps.append(vorp_series, ignore_index = True)
 
     return team_vorps
-
-# Functions to calculate day's win %
 
 def retreive_adjusted_point_differetial():
 
@@ -370,7 +470,9 @@ def calculate_current_day_win_pct(team_vorp_df, frac_season):
 
 ##########RUN################
 
-team_vorp_df, missed_players, frac_season = calculate_current_day_team_vorp(current_year)
-print(missed_players)
-projected_win_pct_table = calculate_current_day_win_pct(team_vorp_df, frac_season)
-print(projected_win_pct_table)
+# team_vorp_df, missed_players, frac_season = calculate_current_day_team_vorp(current_year)
+# print(missed_players)
+# projected_win_pct_table = calculate_current_day_win_pct(team_vorp_df, frac_season)
+# print(projected_win_pct_table)
+
+print(retreive_todays_games())
