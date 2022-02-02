@@ -164,6 +164,7 @@ def retreive_todays_games():
     link = 'https://www.cbssports.com/nba/schedule/'
     driver = webdriver.Chrome(ChromeDriverManager().install())
     driver.get(link)
+    time.sleep(5)
 
     # Getting table for today's games and formatting
     html = driver.page_source
@@ -178,34 +179,43 @@ def retreive_todays_games():
     yesterday = day_buttons[0]
     yesterday.click()
     time.sleep(5)
-    html_yesterday = driver.page_source
-    tables_yesterday = pd.read_html(html_yesterday)
-    yesterday_schedule = tables_yesterday[1]
-    yesterday_schedule = yesterday_schedule[['Away', 'Home']]
     try:
-        yesterday_schedule['Away'] = yesterday_schedule.Away.apply(lambda x: team_map_schedule[x])
-        yesterday_schedule['Home'] = yesterday_schedule.Home.apply(lambda x: team_map_schedule[x])
+        html_yesterday = driver.page_source
+        tables_yesterday = pd.read_html(html_yesterday)
+        yesterday_schedule = tables_yesterday[1]
     except:
-        pass
+        time.sleep(1)
+        html_yesterday = driver.page_source
+        tables_yesterday = pd.read_html(html_yesterday)
+        yesterday_schedule = tables_yesterday[1]
+
+    yesterday_schedule = yesterday_schedule[['Away', 'Home']]
+    yesterday_schedule['Away'] = yesterday_schedule.Away.apply(lambda x: team_map_schedule[x])
+    yesterday_schedule['Home'] = yesterday_schedule.Home.apply(lambda x: team_map_schedule[x])
 
     # Getting table for tomorrow's games and formatting
     day_buttons = driver.find_elements_by_class_name("ToggleContainer-text")
     today = day_buttons[2]
     today.click()
-    time.sleep(2)
+    time.sleep(5)
     day_buttons = driver.find_elements_by_class_name("ToggleContainer-text")
     tomorrow = day_buttons[2]
     tomorrow.click()
     time.sleep(5)
-    html_tomorrow = driver.page_source
-    tables_tomorrow = pd.read_html(html_tomorrow)
-    tomorrow_schedule = tables_tomorrow[1]
-    tomorrow_schedule = tomorrow_schedule[['Away', 'Home']]
     try:
-        tomorrow_schedule['Away'] = tomorrow_schedule.Away.apply(lambda x: team_map_schedule[x])
-        tomorrow_schedule['Home'] = tomorrow_schedule.Home.apply(lambda x: team_map_schedule[x])
+        html_tomorrow = driver.page_source
+        tables_tomorrow = pd.read_html(html_tomorrow)
+        tomorrow_schedule = tables_tomorrow[1]
     except:
-        pass
+        time.sleep(1)
+        html_tomorrow = driver.page_source
+        tables_tomorrow = pd.read_html(html_tomorrow)
+        tomorrow_schedule = tables_tomorrow[1]
+
+    tomorrow_schedule = tomorrow_schedule[['Away', 'Home']]
+    tomorrow_schedule['Away'] = tomorrow_schedule.Away.apply(lambda x: team_map_schedule[x])
+    tomorrow_schedule['Home'] = tomorrow_schedule.Home.apply(lambda x: team_map_schedule[x])
+
 
     # Creating B2B columns for today's today's schedule 
     today_schedule['is_B2B_First_Away'] = today_schedule.Away.apply(lambda x: 1 if x in 
@@ -468,11 +478,27 @@ def calculate_current_day_win_pct(team_vorp_df, frac_season):
 
     return merged_2
 
+# Functions to calculate today's bets
+
+def calculate_todays_bets(projected_win_pct_table):
+
+    # Retreiving today's games
+    todays_games = retreive_todays_games()
+    
+    # Iterating through today's games and putting in calculated probability
+    todays_games['Away_Prob_Naive'] = 0
+    todays_games['Home_Prob_Naive'] = 0
+    for index, row in todays_games.iterrows():
+        todays_games.loc[index, 'Away_Prob_Naive'] = projected_win_pct_table[projected_win_pct_table.Team == row.Away]['Projected_Win_Pct'].iloc[0]                                         
+        todays_games.loc[index, 'Home_Prob_Naive'] = projected_win_pct_table[projected_win_pct_table.Team == row.Home]['Projected_Win_Pct'].iloc[0]
+                                                                                                                
+
+    return todays_games
+
 ##########RUN################
 
-# team_vorp_df, missed_players, frac_season = calculate_current_day_team_vorp(current_year)
-# print(missed_players)
-# projected_win_pct_table = calculate_current_day_win_pct(team_vorp_df, frac_season)
-# print(projected_win_pct_table)
-
-print(retreive_todays_games())
+team_vorp_df, missed_players, frac_season = calculate_current_day_team_vorp(current_year)
+print(missed_players)
+projected_win_pct_table = calculate_current_day_win_pct(team_vorp_df, frac_season)
+print(projected_win_pct_table)
+print(calculate_todays_bets(projected_win_pct_table))
