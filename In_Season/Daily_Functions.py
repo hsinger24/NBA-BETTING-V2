@@ -233,6 +233,116 @@ def retreive_todays_games():
 
     return today_schedule
 
+def retreive_odds():
+
+    # Creating function to convert odds to probability
+    def calculate_odds(odds):
+        if odds<0:
+            return (abs(odds)/(abs(odds)+100))*100
+        if odds>0:
+            return (100/(odds+100))*100
+
+    # Creating team map to align w/ final output
+    team_map = {
+        'Wizards' : 'Washington Wizards',
+        'Celtics' : 'Boston Celtics',
+        'Pelicans' : 'New Orleans Pelicans',
+        'Knicks' : 'New York Knicks',
+        'Pistons' : 'Detroit Pistons',
+        'Magic' : 'Orlando Magic',
+        '76ers' : 'Philadelphia 76ers',
+        'Hawks' : 'Atlanta Hawks',
+        'Pacers' : 'Indiana Pacers',
+        'Raptors' : 'Toronto Raptors',
+        'Grizzlies' : 'Memphis Grizzlies',
+        'Heat' : 'Miami Heat',
+        'Bulls' : 'Chicago Bulls',
+        'Jazz' : 'Utah Jazz',
+        'Bucks' : 'Milwaukee Bucks',
+        'Spurs' : 'San Antonio Spurs',
+        'Warriors' : 'Golden State Warriors',
+        'Thunder' : 'Oklahoma City Thunder',
+        'Timberwolves' : 'Minnesota Timberwolves',
+        'Nuggets' : 'Denver Nuggets',
+        'Suns' : 'Phoenix Suns',
+        'Cavaliers' : 'Cleveland Cavaliers',
+        'Mavericks' : 'Dallas Mavericks',
+        'Kings' : 'Sacramento Kings',
+        'Hornets' : 'Charlotte Hornets',
+        'Trail Blazers' : 'Portland Trailblazers',
+        'Nets' : 'Brooklyn Nets',
+        'Lakers' : 'Los Angeles Lakers',
+        'Clippers' : 'Los Angeles Clippers',
+        'Rockets' : 'Houston Rockets'
+    }
+
+    # Instantiating WebDriver
+    driver = webdriver.Chrome(ChromeDriverManager().install())
+    driver.get('https://www.actionnetwork.com/nba/odds')
+
+    # Navigating to ML
+    ml_button = driver.find_element_by_xpath("//*[@id='__next']/div/main/div/div[2]/div/div[1]/div[2]/select")
+    select = Select(ml_button)
+    select.select_by_visible_text('Moneyline')
+
+    # Getting table from HTML
+    html = driver.page_source
+    tables = pd.read_html(html)
+    odds = tables[0]
+
+    odds_df = pd.DataFrame(columns = ['Home_Team', 'Away_Team', 'Home_Odds', 'Away_Odds'])
+    for index, row in odds.iterrows():
+        
+        # Retreiving teams
+        teams = {}
+        for key in team_map.keys():
+            if row.Scheduled.find(key) != -1:
+                teams[row.Scheduled.find(key)] = key
+        keys = []
+        for key in teams.keys():
+            keys.append(key)
+        if keys[0] > keys[1]:
+            home_team = teams[keys[0]]
+            away_team = teams[keys[1]]
+        else:
+            home_team = teams[keys[1]]
+            away_team = teams[keys[0]]
+        
+        # Retreiving odds
+        ml_string = row['Unnamed: 4']
+        if len(ml_string) == 12:
+            ml_string = ml_string.replace('ML', '')
+            ml_away = ml_string[:4]
+            ml_home = ml_string[-4:]
+        if len(ml_string) == 13:
+            ml_string = ml_string.replace('ML', '')
+            if (ml_string[4] == '+') | (ml_string[4]=='-'):
+                ml_away = ml_string[:4]
+                ml_home = ml_string[-5:]
+            else:
+                ml_away = ml_string[:5]
+                ml_home = ml_string[-4:]
+        try:
+            ml_away = float(ml_away)
+        except:
+            continue
+        try:
+            ml_home = float(ml_home)
+        except:
+            continue
+        series = pd.Series([home_team, away_team, ml_home, ml_away], index = odds_df.columns)
+        odds_df = odds_df.append(series, ignore_index = True)
+    odds_df['Home_Prob'] = odds_df.Home_Odds.apply(calculate_odds)
+    odds_df['Away_Prob'] = odds_df.Away_Odds.apply(calculate_odds)
+    odds_df['Home_Team'] = odds_df.Home_Team.apply(lambda x: team_map[x])
+    odds_df['Away_Team'] = odds_df.Away_Team.apply(lambda x: team_map[x])
+
+    # Adding a message if games are passed over for same reason
+    if len(odds_df) != len(odds):
+        print("At least one game not included in odds df")
+    
+    return odds_df
+    
 # Functions to calculate day's win %
 
 def retreive_active_rosters_vorp(current_year):
@@ -491,14 +601,29 @@ def calculate_todays_bets(projected_win_pct_table):
     for index, row in todays_games.iterrows():
         todays_games.loc[index, 'Away_Prob_Naive'] = projected_win_pct_table[projected_win_pct_table.Team == row.Away]['Projected_Win_Pct'].iloc[0]                                         
         todays_games.loc[index, 'Home_Prob_Naive'] = projected_win_pct_table[projected_win_pct_table.Team == row.Home]['Projected_Win_Pct'].iloc[0]
-                                                                                                                
+    
+    # Iterating through today's games to adjust projected winning percentage based on game factors
+    for index, row in todays_games.itterows():
+
+        # Getting projected win % by comparing naive projected
+        home_prob_compared = row.Home_Prob_Naive * (1 - row.Away_Prob_Naive) 
+        away_prob_compared = row.Away_Prob_Naive * (1 - row.Home_Prob_Naive)
+
+        # Adjusting home projection to scale to 100%
+        home_prob_compared_2 = home_prob_compared / (home_prob_compared + away_prob_compared)                                                                                                          
+
+        # Adjusting for home court advantage
+        home_prob_adjusted = home_prob_compared_2 * 1.16
+        away_prob_adjusted = 1.0 - home_prob_adjusted
 
     return todays_games
 
 ##########RUN################
 
-team_vorp_df, missed_players, frac_season = calculate_current_day_team_vorp(current_year)
-print(missed_players)
-projected_win_pct_table = calculate_current_day_win_pct(team_vorp_df, frac_season)
-print(projected_win_pct_table)
-print(calculate_todays_bets(projected_win_pct_table))
+# team_vorp_df, missed_players, frac_season = calculate_current_day_team_vorp(current_year)
+# print(missed_players)
+# projected_win_pct_table = calculate_current_day_win_pct(team_vorp_df, frac_season)
+# print(projected_win_pct_table)
+# print(calculate_todays_bets(projected_win_pct_table))
+
+print(retreive_odds())
