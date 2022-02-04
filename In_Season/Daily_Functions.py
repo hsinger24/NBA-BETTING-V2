@@ -32,11 +32,31 @@ else:
 
 def retreive_active_rosters():
 
+    # Functions for name standardizing
+    def name_standardization_df(df):
+        df['Player'] = df.Player.apply(unidecode.unidecode)
+        df['Player'] = df.Player.str.replace('.', '')
+        df['Player'] = df.Player.str.replace("'", '')
+        df['Player'] = df.Player.str.lower()
+        df['Player'] = df.Player.str.strip('*')
+        return df
+    def name_standardization_player(player):
+        player = unidecode.unidecode(player)
+        player = player.replace('.', '')
+        player = player.replace("'", '')
+        player = player.lower()
+        player = player.strip('*')
+        return player
+
+    # Retreiving retreive_injuries
+    injuries = retreive_injuries()
+    injuries = name_standardization_df(injuries)
+
     # Instantiating necessary items
     driver = webdriver.Chrome(ChromeDriverManager().install())
     driver.get('https://www.lineups.com/nba/depth-charts')
     driver.refresh()
-    time.sleep(10)
+    time.sleep(5)
     html = driver.page_source
     tables = pd.read_html(html)
     teams = ['Atlanta Hawks', 'Boston Celtics', 'Brooklyn Nets', 'Charlotte Hornets',
@@ -61,7 +81,7 @@ def retreive_active_rosters():
         except:
             name = x
         return name
-    
+
     # Getting active rosters into dictionary of lists for each team
     team_dict = {}
     for team, table in zip(teams,tables):
@@ -73,7 +93,13 @@ def retreive_active_rosters():
         for i in range(table.shape[0]): 
             for j in range(table.shape[1]):
                 player = table.iloc[i, j]
-                players = players + [player]
+                if type(player) == float:
+                    continue
+                player_standard = name_standardization_player(player)
+                if (player_standard in injuries.Player.unique()):
+                    pass
+                else:
+                    players = players + [player]
         team_dict[team] = players
 
     return team_dict
@@ -654,4 +680,3 @@ def calculate_todays_bets(projected_win_pct_table):
 # print(projected_win_pct_table)
 # print(calculate_todays_bets(projected_win_pct_table))
 
-print(retreive_injuries())
