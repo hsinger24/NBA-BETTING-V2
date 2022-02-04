@@ -78,6 +78,26 @@ def retreive_active_rosters():
 
     return team_dict
 
+def retreive_injuries():
+    # Getting tables
+    tables = pd.read_html('https://www.espn.com/nba/injuries')
+
+    # Iterating through injury tables to create injury list
+    injuries = pd.DataFrame(columns = ['NAME', 'STATUS'])
+    for table in tables:
+        table = table[['NAME', 'STATUS']]
+        injuries = injuries.append(table)
+    injuries.reset_index(drop = True, inplace = True)
+
+    # Filtering out players who may not be out
+    injuries = injuries[injuries.STATUS == 'Out']
+
+    # Adjusting columns
+    injuries = injuries[['NAME']]
+    injuries.columns = ['Player']
+
+    return injuries
+
 def retreive_games_played(current_year):
 
     # Map to change team names
@@ -634,4 +654,4 @@ def calculate_todays_bets(projected_win_pct_table):
 # print(projected_win_pct_table)
 # print(calculate_todays_bets(projected_win_pct_table))
 
-print(retreive_todays_games())
+print(retreive_injuries())
