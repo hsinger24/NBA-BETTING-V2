@@ -660,11 +660,23 @@ def calculate_todays_bets(projected_win_pct_table):
         # Adjusting for home court advantage
         home_prob_adjusted = home_prob_compared_2 * 1.16
         away_prob_adjusted = 1.0 - home_prob_adjusted
-    
-    # Add underlying probability of odds
+
+        # Adjusting for second game of B2B
+        if (row.is_B2B_Second_Home == 1) & (row.is_B2B_Second_Away == 0):
+            away_prob_adjusted = away_prob_adjusted * 1.16
+            home_prob_adjusted = (1.0 - away_prob_adjusted)
+        if (row.is_B2B_Second_Home == 0) & (row.is_B2B_Second_Away == 1):
+            home_prob_adjusted = home_prob_adjusted * 1.16
+            away_prob_adjusted = (1.0 - home_prob_adjusted)
+        
+        # Inputting adjusted win percentage
+        todays_games.loc[index, 'Home_Prob_Adjusted'] = home_prob_adjusted
+        todays_games.loc[index, 'Away_Prob_Adjusted'] = away_prob_adjusted
+
+    # Add underlying probability of odds to df
     todays_games['Home_Prob_Odds'] = 0
     todays_games['Away_Prob_Odds'] = 0
-    for index, row in todays_games.iterrsows():
+    for index, row in todays_games.iterrows():
         home_team = row.Home
         away_team = row.Away
         todays_games.loc[index, 'Home_Prob_Odds'] = todays_odds[todays_odds.Home_Team == home_team]['Home_Prob'].iloc[0]
@@ -674,9 +686,8 @@ def calculate_todays_bets(projected_win_pct_table):
 
 ##########RUN################
 
-# team_vorp_df, missed_players, frac_season = calculate_current_day_team_vorp(current_year)
-# print(missed_players)
-# projected_win_pct_table = calculate_current_day_win_pct(team_vorp_df, frac_season)
-# print(projected_win_pct_table)
-# print(calculate_todays_bets(projected_win_pct_table))
+team_vorp_df, missed_players, frac_season = calculate_current_day_team_vorp(current_year)
+projected_win_pct_table = calculate_current_day_win_pct(team_vorp_df, frac_season)
+print(missed_players)
+print(calculate_todays_bets(projected_win_pct_table))
 
