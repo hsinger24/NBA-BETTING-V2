@@ -735,13 +735,30 @@ def calculate_todays_bets(projected_win_pct_table, kelly, capital, save = False)
     todays_games['Home_Bet'] = todays_games.Home_Bet_Size * capital
     todays_games['Away_Bet'] = todays_games.Away_Bet_Size * capital
 
+    # Creating Payoff column
+    todays_games['Potential_Payoff'] = 0
+    for index, row in todays_games.iterrows():
+        if row.Home_Bet > 0:
+            if row.Home_Odds < 0:
+                todays_games.loc[index, 'Potential_Payoff'] = (row.Home_Bet/abs(row.Home_Odds))*100
+            if row.Home_Odds > 0:
+                todays_games.loc[index, 'Potential_Payoff'] = row.Home_Bet * (row.Home_Odds/100)
+        if row.Away_Bet > 0:
+            if row.Away_Odds < 0:
+                todays_games.loc[index, 'Potential_Payoff'] = (row.Away_Bet/abs(row.Away_Odds))*100
+            if row.Away_Odds > 0:
+                todays_games.loc[index, 'Potential_Payoff'] = row.Away_Bet * (row.Away_Odds/100)
+    
+    # Adding date column
+    todays_games['Date'] = dt.date.today()
+
     # Saving today's bets
     if save:
         todays_games.to_csv('In_Season/Data/todays_bets.csv')
 
     return todays_games
 
-def calculate_yesterdays_bet_results():
+def calculate_yesterdays_bet_results(capital, first_run = False):
 
     # Initializing necessary objects
     yesterdays_bets = pd.read_csv('In_Season/Data/todays_bets.csv', index_col = 0)
@@ -804,11 +821,42 @@ def calculate_yesterdays_bet_results():
         yesterday_schedule.loc[index, 'Winner'] = winner
     yesterday_schedule['Winner'] = yesterday_schedule.Winner.apply(lambda x: team_map_results[x])
 
+    # Determining if bet hit and calculating running total of capital
     winners = list(yesterday_schedule.Winner.unique())
+    yesterday_schedule['Capital'] = capital
+    for index, row in yesterday_schedule.iterrows():
+        if index == 0:
+            if row.Home_Bet > 0:
+                if row.Home in winners:
+                    yesterday_schedule.loc[index, 'Capital'] = capital + row.Potential_Payoff
+                else:
+                    yesterday_schedule.loc[index, 'Capital'] = capital - row.Home_Bet
+            if row.Away_Bet > 0:
+                if row.Away in winners:
+                    yesterday_schedule.loc[index, 'Capital'] = capital + row.Potential_Payoff
+                else:
+                    yesterday_schedule.loc[index, 'Capital'] = capital - row.Away_Bet
+        else:
+            if row.Home_Bet > 0:
+                if row.Home in winners:
+                    yesterday_schedule.loc[index, 'Capital'] = yesterdays_bets.loc[(index - 1), 'Capital'] + row.Potential_Payoff
+                else:
+                    yesterday_schedule.loc[index, 'Capital'] = yesterdays_bets.loc[(index - 1), 'Capital'] - row.Home_Bet
+            if row.Away_Bet > 0:
+                if row.Away in winners:
+                    yesterday_schedule.loc[index, 'Capital'] = yesterdays_bets.loc[(index - 1), 'Capital'] + row.Potential_Payoff
+                else:
+                    yesterday_schedule.loc[index, 'Capital'] = yesterdays_bets.loc[(index - 1), 'Capital'] - row.Away_Bet
     
-    # Iterating through yesterday's bets and calculating results
+    # Saving results
+    if first_run:
+        yesterday_schedule.to_csv('In_Season/Data/results_tracker.csv')
+    else:
+        results = pd.read_csv('In_Season/Data/results_tracker.csv')
+        results = results.append(yesterday_schedule)
 
-    return
+    return yesterday_schedule
+
 ##########RUN################
 
 # team_vorp_df, missed_players, frac_season = calculate_current_day_team_vorp(current_year)
