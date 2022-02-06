@@ -17,14 +17,17 @@ import pickle
 import unidecode
 import time
 import datetime as dt
+import re
 
-# Setting current year parameters
+# Setting current year parameter
 today = dt.date.today()
 today_month = today.month
 if (today_month > 7):
     current_year = today.year + 1
 else:
     current_year = today.year
+
+kelly = 10.0
 
 ##########FUNCTIONS##########
 
@@ -210,7 +213,6 @@ def retreive_todays_games():
     link = 'https://www.cbssports.com/nba/schedule/'
     driver = webdriver.Chrome(ChromeDriverManager().install())
     driver.get(link)
-    time.sleep(5)
 
     # Getting table for today's games and formatting
     WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, "//*[@id='TableBase']/div/div/table")))
@@ -630,9 +632,9 @@ def calculate_current_day_win_pct(team_vorp_df, frac_season):
 
     return merged_2
 
-# Functions to calculate today's bets
+# Functions to calculate today's bets and results
 
-def calculate_todays_bets(projected_win_pct_table):
+def calculate_todays_bets(projected_win_pct_table, kelly, capital, save = False):
 
     # Retreiving today's games
     todays_games = retreive_todays_games()
@@ -661,35 +663,156 @@ def calculate_todays_bets(projected_win_pct_table):
         if (row.is_B2B_Second_Home == 0) & (row.is_B2B_Second_Away == 1):
             home_prob_adjusted = home_prob_compared_2 * 1.26
             away_prob_adjusted = 1.0 - home_prob_adjusted
-        if (row.is_B2B_Second_Home == 1) & (row.is_B2B_Second_Away == 0):
-            home_prob_adjusted = home_prob_adjusted * 1.10
+        elif (row.is_B2B_Second_Home == 1) & (row.is_B2B_Second_Away == 0):
+            home_prob_adjusted = home_prob_compared_2 * 1.10
             away_prob_adjusted = (1.0 - home_prob_adjusted)
-        if (row.is_B2B_Second_Home == 1) & (row.is_B2B_Second_Away == 1):
+        elif (row.is_B2B_Second_Home == 1) & (row.is_B2B_Second_Away == 1):
             home_prob_adjusted = home_prob_compared_2 * 1.16
             away_prob_adjusted = 1.0 - home_prob_adjusted
-        if (row.is_B2B_Second_Home == 0) & (row.is_B2B_Second_Away == 0):
-            home_prob_adjusted = home_prob_adjusted * 1.16
+        elif (row.is_B2B_Second_Home == 0) & (row.is_B2B_Second_Away == 0):
+            home_prob_adjusted = home_prob_compared_2 * 1.16
             away_prob_adjusted = (1.0 - home_prob_adjusted)
+        else:
+            print("There's been a grave mistake")
         
         # Inputting adjusted win percentage
         todays_games.loc[index, 'Home_Prob_Adjusted'] = home_prob_adjusted
         todays_games.loc[index, 'Away_Prob_Adjusted'] = away_prob_adjusted
 
     # Add underlying probability of odds to df
+    todays_games['Home_Odds'] = 0
+    todays_games['Away_Odds'] = 0
     todays_games['Home_Prob_Odds'] = 0
     todays_games['Away_Prob_Odds'] = 0
     for index, row in todays_games.iterrows():
         home_team = row.Home
         away_team = row.Away
-        todays_games.loc[index, 'Home_Prob_Odds'] = todays_odds[todays_odds.Home_Team == home_team]['Home_Prob'].iloc[0]
-        todays_games.loc[index, 'Away_Prob_Odds'] = todays_odds[todays_odds.Away_Team == away_team]['Away_Prob'].iloc[0]
+        todays_games.loc[index, 'Home_Prob_Odds'] = todays_odds[todays_odds.Home_Team == home_team]['Home_Prob'].iloc[0]/100.0
+        todays_games.loc[index, 'Away_Prob_Odds'] = todays_odds[todays_odds.Away_Team == away_team]['Away_Prob'].iloc[0]/100.0
+        todays_games.loc[index, 'Home_Odds'] = todays_odds[todays_odds.Home_Team == home_team]['Home_Odds'].iloc[0]
+        todays_games.loc[index, 'Away_Odds'] = todays_odds[todays_odds.Home_Team == home_team]['Away_Odds'].iloc[0]
+
+    # Creating columns to feed into kelly formula
+    todays_games['Home_Prob_Diff'] = todays_games.Home_Prob_Adjusted - todays_games.Home_Prob_Odds
+    todays_games['Away_Prob_Diff'] = todays_games.Away_Prob_Adjusted - todays_games.Away_Prob_Odds
+
+    # Creating column of Kelly recommendation
+    todays_games['Home_Bet_Size'] = 0
+    todays_games['Away_Bet_Size'] = 0
+    for index, row in todays_games.iterrows():
+
+        # Home Kelly Recommendation
+        if row.Home_Prob_Diff < 0:
+            todays_games.loc[index, 'Home_Bet_Size'] = 0
+        else:
+            p = row.Home_Prob_Adjusted
+            q = 1.0 - p
+            ml = row.Home_Odds
+            if ml>=0:
+                b = (ml/100)
+            if ml<0:
+                b = (100/abs(ml))
+            kc = ((p*b) - q) / b
+            bet = kc/kelly
+            todays_games.loc[index, 'Home_Bet_Size'] = bet
+        
+        # Away Kelly Recommendation
+        if row.Away_Prob_Diff < 0:
+            todays_games.loc[index, 'Away_Bet_Size'] = 0
+        else:
+            p = row.Away_Prob_Adjusted
+            q = 1.0 - p
+            ml = row.Away_Odds
+            if ml>=0:
+                b = (ml/100)
+            if ml<0:
+                b = (100/abs(ml))
+            kc = ((p*b) - q) / b
+            bet = kc/kelly
+            todays_games.loc[index, 'Away_Bet_Size'] = bet
+    
+    # Creating bet columns
+    todays_games['Home_Bet'] = todays_games.Home_Bet_Size * capital
+    todays_games['Away_Bet'] = todays_games.Away_Bet_Size * capital
+
+    # Saving today's bets
+    if save:
+        todays_games.to_csv('In_Season/Data/todays_bets.csv')
 
     return todays_games
 
+def calculate_yesterdays_bet_results():
+
+    # Initializing necessary objects
+    yesterdays_bets = pd.read_csv('In_Season/Data/todays_bets.csv', index_col = 0)
+    team_map_results = {
+        'LAL' : 'Los Angeles Lakers',
+        'LAC' : 'Los Angeles Clippers',
+        'POR' : 'Portland Trailblazers',
+        'CLE' : 'Cleveland Cavaliers',
+        'DEN' : 'Denver Nuggets',
+        'DAL' : 'Dallas Mavericks',
+        'UTA' : 'Utah Jazz',
+        'SA' : 'San Antonio Spurs',
+        'ATL' : 'Atlanta Hawks',
+        'CHA' : 'Charlotte Hornets',
+        'CHI' : 'Chicago Bulls',
+        'DET' : 'Detroit Pistons',
+        'MIL' : 'Milwaukee Bucks',
+        'ORL' : 'Orlando Magic',
+        'MIN' : 'Minnesota Timberwolves',
+        'PHO' : 'Phoenix Suns',
+        'BOS' : 'Boston Celtics',
+        'IND' : 'Indiana Pacers',
+        'SAC' : 'Sacramento Kings',
+        'TOR' : 'Toronto Raptors',
+        'WAS' : 'Washington Wizards',
+        'BKN' : 'Brooklyn Nets',
+        'NO' : 'New Orleans Pelicans',
+        'DAL' : 'Dallas Mavericks',
+        'PHI' : 'Philadelphia 76ers',
+        'MIA' : 'Miami Heat',
+        'MEM' : 'Memphis Grizzlies',
+        'GS' : 'Golden State Warriors',
+        'NY' : 'New York Knicks',
+        'HOU' : 'Houston Rockets',
+        'OKC' : 'Oklahoma City Thunder'
+    }
+
+    # Instantiating selenium driver
+    link = 'https://www.cbssports.com/nba/schedule/'
+    driver = webdriver.Chrome(ChromeDriverManager().install())
+    driver.get(link)
+
+    # Getting table for yesterday's games and formatting
+    day_buttons = driver.find_elements_by_class_name("ToggleContainer-text")
+    yesterday = day_buttons[0]
+    yesterday.click()
+    WebDriverWait(driver, 20).until(EC.visibility_of_element_located((By.XPATH, "//*[@id='TableBase']/div/div/table")))
+    html_yesterday = driver.page_source
+    tables_yesterday = pd.read_html(html_yesterday)
+    try:
+        yesterday_schedule = tables_yesterday[1]
+    except:
+        yesterday_schedule = tables_yesterday[0]
+    yesterday_schedule = yesterday_schedule[['Away', 'Home', 'Result']]
+
+    # Populating yesterday's schedule w/ winner
+    yesterday_schedule['Winner'] = ''
+    for index, row in yesterday_schedule.iterrows():
+        winner = row.Result[:3]
+        yesterday_schedule.loc[index, 'Winner'] = winner
+    yesterday_schedule['Winner'] = yesterday_schedule.Winner.apply(lambda x: team_map_results[x])
+
+    winners = list(yesterday_schedule.Winner.unique())
+    
+    # Iterating through yesterday's bets and calculating results
+
+    return
 ##########RUN################
 
-team_vorp_df, missed_players, frac_season = calculate_current_day_team_vorp(current_year)
-projected_win_pct_table = calculate_current_day_win_pct(team_vorp_df, frac_season)
-print(missed_players)
-print(calculate_todays_bets(projected_win_pct_table))
+# team_vorp_df, missed_players, frac_season = calculate_current_day_team_vorp(current_year)
+# projected_win_pct_table = calculate_current_day_win_pct(team_vorp_df, frac_season)
+# print(missed_players)
+# print(calculate_todays_bets(projected_win_pct_table, kelly, capital = 100000, save = True))
 
