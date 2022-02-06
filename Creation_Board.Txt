@@ -1,15 +1,12 @@
-Ideas/Things to Quantify
+Quantifications
 
-1. B2B Affect
-    a. Team's on a B2B win 44.63678516228748% of the time
-        1. Other side is 47.01955914312326%
-    b. Team's on the first game of a B2B win 47.040785035265253% of the time 
-        1. Other side is 48.256537982565384%
-    c. Team's on the second game of a B2B win 42.31242312423124% of the time
-        1. Other side is 45.760636669727583%
-2. Home court advantage
-    a. Home team wins 57.91690061763054% of the time  
-        1. Other side is 60.43832537229559%
+1. Home/B2B Advantage - 61/66
+2. Home/B2B Disadvantage - 54/56
+3. Home/Both B2B - 58/61
+4. Home/Neither B2B - 57/59
+
+1. Away/B2B Advantage - 44/46
+2. Away/B2B Disadvantage
 
 Points of Improvement:
 

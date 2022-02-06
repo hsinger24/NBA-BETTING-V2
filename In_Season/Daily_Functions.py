@@ -657,15 +657,17 @@ def calculate_todays_bets(projected_win_pct_table):
         # Adjusting home projection to scale to 100%
         home_prob_compared_2 = home_prob_compared / (home_prob_compared + away_prob_compared)                                                                                                          
 
-        # Adjusting for home court advantage
-        home_prob_adjusted = home_prob_compared_2 * 1.16
-        away_prob_adjusted = 1.0 - home_prob_adjusted
-
-        # Adjusting for second game of B2B
-        if (row.is_B2B_Second_Home == 1) & (row.is_B2B_Second_Away == 0):
-            away_prob_adjusted = away_prob_adjusted * 1.16
-            home_prob_adjusted = (1.0 - away_prob_adjusted)
+        # Adjusting for home court advantage/B2B
         if (row.is_B2B_Second_Home == 0) & (row.is_B2B_Second_Away == 1):
+            home_prob_adjusted = home_prob_compared_2 * 1.26
+            away_prob_adjusted = 1.0 - home_prob_adjusted
+        if (row.is_B2B_Second_Home == 1) & (row.is_B2B_Second_Away == 0):
+            home_prob_adjusted = home_prob_adjusted * 1.10
+            away_prob_adjusted = (1.0 - home_prob_adjusted)
+        if (row.is_B2B_Second_Home == 1) & (row.is_B2B_Second_Away == 1):
+            home_prob_adjusted = home_prob_compared_2 * 1.16
+            away_prob_adjusted = 1.0 - home_prob_adjusted
+        if (row.is_B2B_Second_Home == 0) & (row.is_B2B_Second_Away == 0):
             home_prob_adjusted = home_prob_adjusted * 1.16
             away_prob_adjusted = (1.0 - home_prob_adjusted)
         
