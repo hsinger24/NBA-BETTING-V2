@@ -501,10 +501,10 @@ def calculate_current_day_team_vorp(current_year):
     table = table[table.Team != 'Tm']
     table = table[table.Team != 'TOT']
     table['VORP'] = table.VORP.apply(pd.to_numeric)
-    player_vorp = table.groupby(['Player', 'Games'])['VORP'].sum()
-    player_vorp = pd.DataFrame(player_vorp)
-    player_vorp.reset_index(drop = False, inplace = True)
-    player_vorp.columns = ['Player', 'Games', 'VORP']
+    table = table.groupby(['Player']).agg({'VORP' : 'sum', 'Games' : 'sum'})
+    table = pd.DataFrame(table)
+    table.reset_index(drop = False, inplace = True)
+    table.columns = ['Player', 'VORP', 'Games']
 
     # Adjusting naming conventions of current year VORP table to be consistent w/ BOY vorps
     def name_exceptions(x):
@@ -879,10 +879,11 @@ def calculate_yesterdays_bet_results(capital, first_run = False):
 
 # Calculate todays bets
 
-results = pd.read_csv('In_Season/Data/results_tracker.csv')
-today_capital = results.loc[len(results)-1, 'Capital']
-team_vorp_df, missed_players, frac_season = calculate_current_day_team_vorp(current_year)
-projected_win_pct_table = calculate_current_day_win_pct(team_vorp_df, frac_season)
-print(missed_players)
-print(calculate_todays_bets(projected_win_pct_table, kelly, capital = today_capital, save = True))
+# results = pd.read_csv('In_Season/Data/results_tracker.csv')
+# today_capital = results.loc[len(results)-1, 'Capital']
+# team_vorp_df, missed_players, frac_season = calculate_current_day_team_vorp(current_year)
+# projected_win_pct_table = calculate_current_day_win_pct(team_vorp_df, frac_season)
+# print(team_vorp_df)
+# print(calculate_todays_bets(projected_win_pct_table, kelly, capital = today_capital, save = True))
 
+print(retreive_active_rosters())
