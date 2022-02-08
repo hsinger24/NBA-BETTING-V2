@@ -501,10 +501,10 @@ def calculate_current_day_team_vorp(current_year):
     table = table[table.Team != 'Tm']
     table = table[table.Team != 'TOT']
     table['VORP'] = table.VORP.apply(pd.to_numeric)
-    table = table.groupby(['Player']).agg({'VORP' : 'sum', 'Games' : 'sum'})
+    table = table.groupby(['Player']).agg({'Games' : 'sum', 'VORP' : 'sum'})
     table = pd.DataFrame(table)
     table.reset_index(drop = False, inplace = True)
-    table.columns = ['Player', 'VORP', 'Games']
+    table.columns = ['Player', 'Games', 'VORP']
 
     # Adjusting naming conventions of current year VORP table to be consistent w/ BOY vorps
     def name_exceptions(x):
