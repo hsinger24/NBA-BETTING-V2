@@ -333,6 +333,8 @@ def retreive_odds():
     html = driver.page_source
     tables = pd.read_html(html)
     odds = tables[0]
+    odds.dropna(inplace = True)
+    odds.reset_index(drop = True, inplace = True)
 
     odds_df = pd.DataFrame(columns = ['Home_Team', 'Away_Team', 'Home_Odds', 'Away_Odds'])
     for index, row in odds.iterrows():
@@ -353,7 +355,7 @@ def retreive_odds():
             away_team = teams[keys[0]]
         
         # Retreiving odds
-        ml_string = row['Unnamed: 4']
+        ml_string = row['Unnamed: 5']
         if len(ml_string) == 12:
             ml_string = ml_string.replace('ML', '')
             ml_away = ml_string[:4]
@@ -866,6 +868,8 @@ def calculate_yesterdays_bet_results(capital, first_run = False):
     else:
         results = pd.read_csv('In_Season/Data/results_tracker.csv')
         results = results.append(yesterday_bets)
+        results.reset_index(drop = True, inplace = True)
+        results.to_csv('In_Season/Data/results_tracker.csv')
 
     return yesterday_bets
 
@@ -885,5 +889,3 @@ def calculate_yesterdays_bet_results(capital, first_run = False):
 # projected_win_pct_table = calculate_current_day_win_pct(team_vorp_df, frac_season)
 # print(team_vorp_df)
 # print(calculate_todays_bets(projected_win_pct_table, kelly, capital = today_capital, save = True))
-
-print(retreive_active_rosters())
