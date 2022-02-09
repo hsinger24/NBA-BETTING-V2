@@ -866,7 +866,7 @@ def calculate_yesterdays_bet_results(capital, first_run = False):
     if first_run:
         yesterday_bets.to_csv('In_Season/Data/results_tracker.csv')
     else:
-        results = pd.read_csv('In_Season/Data/results_tracker.csv')
+        results = pd.read_csv('In_Season/Data/results_tracker.csv', index_col = 0)
         results = results.append(yesterday_bets)
         results.reset_index(drop = True, inplace = True)
         results.to_csv('In_Season/Data/results_tracker.csv')
