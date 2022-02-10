@@ -877,15 +877,15 @@ def calculate_yesterdays_bet_results(capital, first_run = False):
 
 # Calculating results from yesterday
 
-# results = pd.read_csv('In_Season/Data/results_tracker.csv')
-# yesterday_capital = results.loc[len(results)-1, 'Capital']
-# print(calculate_yesterdays_bet_results(capital = yesterday_capital, first_run = False))
+results = pd.read_csv('In_Season/Data/results_tracker.csv')
+yesterday_capital = results.loc[len(results)-1, 'Capital']
+print(calculate_yesterdays_bet_results(capital = yesterday_capital, first_run = False))
 
 # Calculate todays bets
 
-# results = pd.read_csv('In_Season/Data/results_tracker.csv')
-# today_capital = results.loc[len(results)-1, 'Capital']
-# team_vorp_df, missed_players, frac_season = calculate_current_day_team_vorp(current_year)
-# projected_win_pct_table = calculate_current_day_win_pct(team_vorp_df, frac_season)
-# print(team_vorp_df)
-# print(calculate_todays_bets(projected_win_pct_table, kelly, capital = today_capital, save = True))
+results = pd.read_csv('In_Season/Data/results_tracker.csv')
+today_capital = results.loc[len(results)-1, 'Capital']
+team_vorp_df, missed_players, frac_season = calculate_current_day_team_vorp(current_year)
+projected_win_pct_table = calculate_current_day_win_pct(team_vorp_df, frac_season)
+print(team_vorp_df)
+print(calculate_todays_bets(projected_win_pct_table, kelly, capital = today_capital, save = True))
