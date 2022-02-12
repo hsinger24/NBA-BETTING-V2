@@ -368,6 +368,14 @@ def retreive_odds():
             else:
                 ml_away = ml_string[:5]
                 ml_home = ml_string[-4:]
+        if len(ml_string) == 14:
+            ml_string = ml_string.replace('ML', '')
+            if (ml_string[5] == '+') | (ml_string[5]=='-'):
+                ml_away = ml_string[:5]
+                ml_home = ml_string[-5:]
+            else:
+                ml_away = ml_string[:5]
+                ml_home = ml_string[-5:]
         try:
             ml_away = float(ml_away)
         except:
@@ -877,9 +885,9 @@ def calculate_yesterdays_bet_results(capital, first_run = False):
 
 # Calculating results from yesterday
 
-results = pd.read_csv('In_Season/Data/results_tracker.csv')
-yesterday_capital = results.loc[len(results)-1, 'Capital']
-print(calculate_yesterdays_bet_results(capital = yesterday_capital, first_run = False))
+# results = pd.read_csv('In_Season/Data/results_tracker.csv')
+# yesterday_capital = results.loc[len(results)-1, 'Capital']
+# print(calculate_yesterdays_bet_results(capital = yesterday_capital, first_run = False))
 
 # Calculate todays bets
 
@@ -887,5 +895,5 @@ results = pd.read_csv('In_Season/Data/results_tracker.csv')
 today_capital = results.loc[len(results)-1, 'Capital']
 team_vorp_df, missed_players, frac_season = calculate_current_day_team_vorp(current_year)
 projected_win_pct_table = calculate_current_day_win_pct(team_vorp_df, frac_season)
-print(team_vorp_df)
 print(calculate_todays_bets(projected_win_pct_table, kelly, capital = today_capital, save = True))
+print(missed_players)
