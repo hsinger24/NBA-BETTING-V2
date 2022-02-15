@@ -671,15 +671,18 @@ def calculate_todays_bets(projected_win_pct_table, kelly, capital, save = False)
         home_prob_compared = row.Home_Prob_Naive * (1 - row.Away_Prob_Naive) 
         away_prob_compared = row.Away_Prob_Naive * (1 - row.Home_Prob_Naive)
 
+        # Creating a scaler for adjustment
+        scaler = 1.0/(home_prob_compared + away_prob_compared)
+
         # Adjusting for home court advantage/B2B
         if (row.is_B2B_Second_Home == 0) & (row.is_B2B_Second_Away == 1):
-            home_prob_compared_2 = home_prob_compared * 1.26
+            home_prob_compared_2 = home_prob_compared * 1.26 * scaler
         elif (row.is_B2B_Second_Home == 1) & (row.is_B2B_Second_Away == 0):
-            home_prob_compared_2 = home_prob_compared * 1.10
+            home_prob_compared_2 = home_prob_compared * 1.10 * scaler
         elif (row.is_B2B_Second_Home == 1) & (row.is_B2B_Second_Away == 1):
-            home_prob_compared_2 = home_prob_compared * 1.16
+            home_prob_compared_2 = home_prob_compared * 1.16 * scaler
         elif (row.is_B2B_Second_Home == 0) & (row.is_B2B_Second_Away == 0):
-            home_prob_compared_2 = home_prob_compared * 1.16
+            home_prob_compared_2 = home_prob_compared * 1.16 * scaler
         else:
             print("There's been a grave mistake")
 
@@ -900,6 +903,10 @@ def calculate_yesterdays_bet_results(capital, first_run = False):
 
     return yesterday_bets
 
+# Functions to calculate external bets and results for
+
+
+
 # Function to send email with today's bets
 
 def send_email():
@@ -952,9 +959,9 @@ def send_email():
 
 # Calculating results from yesterday
 
-results = pd.read_csv('In_Season/Data/results_tracker.csv')
-yesterday_capital = results.loc[len(results)-1, 'Capital']
-print(calculate_yesterdays_bet_results(capital = yesterday_capital, first_run = False))
+# results = pd.read_csv('In_Season/Data/results_tracker.csv')
+# yesterday_capital = results.loc[len(results)-1, 'Capital']
+# print(calculate_yesterdays_bet_results(capital = yesterday_capital, first_run = False))
 
 # Calculate todays bets
 
@@ -962,6 +969,8 @@ results = pd.read_csv('In_Season/Data/results_tracker.csv')
 today_capital = results.loc[len(results)-1, 'Capital']
 team_vorp_df, missed_players, frac_season = calculate_current_day_team_vorp(current_year)
 projected_win_pct_table = calculate_current_day_win_pct(team_vorp_df, frac_season)
-print(calculate_todays_bets(projected_win_pct_table, kelly, capital = today_capital, save = True))
+# print(calculate_todays_bets(projected_win_pct_table, kelly, capital = today_capital, save = True))
+bets = calculate_todays_bets(projected_win_pct_table, kelly, capital = today_capital, save = False)
+bets.to_csv('In_Season/Data/test.csv')
 print(missed_players)
-send_email()
+# send_email()
