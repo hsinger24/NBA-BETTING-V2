@@ -671,41 +671,40 @@ def calculate_todays_bets(projected_win_pct_table, kelly, capital, save = False)
         home_prob_compared = row.Home_Prob_Naive * (1 - row.Away_Prob_Naive) 
         away_prob_compared = row.Away_Prob_Naive * (1 - row.Home_Prob_Naive)
 
-        # Creating a scaler for adjustment
-        scaler = 1.0/(home_prob_compared + away_prob_compared)
+        # # Creating a scaler for adjustment
+        # scaler = 1.0/(home_prob_compared + away_prob_compared)
+
+        # # Adjusting for home court advantage/B2B
+        # if (row.is_B2B_Second_Home == 0) & (row.is_B2B_Second_Away == 1):
+        #     home_prob_adjusted = home_prob_compared * 1.26 * scaler
+        # elif (row.is_B2B_Second_Home == 1) & (row.is_B2B_Second_Away == 0):
+        #     home_prob_adjusted = home_prob_compared * 1.10 * scaler
+        # elif (row.is_B2B_Second_Home == 1) & (row.is_B2B_Second_Away == 1):
+        #     home_prob_adjusted = home_prob_compared * 1.16 * scaler
+        # elif (row.is_B2B_Second_Home == 0) & (row.is_B2B_Second_Away == 0):
+        #     home_prob_adjusted = home_prob_compared * 1.16 * scaler
+        # else:
+        #     print("There's been a grave mistake")
+
+        # Adjusting home projection to scale to 100%
+        home_prob_compared_2 = home_prob_compared / (home_prob_compared + away_prob_compared)
+        # away_prob_adjusted = 1.0 - home_prob_adjusted                                                                                                     
 
         # Adjusting for home court advantage/B2B
         if (row.is_B2B_Second_Home == 0) & (row.is_B2B_Second_Away == 1):
-            home_prob_compared_2 = home_prob_compared * 1.26 * scaler
+            home_prob_adjusted = home_prob_compared_2 * 1.26
+            away_prob_adjusted = 1.0 - home_prob_adjusted
         elif (row.is_B2B_Second_Home == 1) & (row.is_B2B_Second_Away == 0):
-            home_prob_compared_2 = home_prob_compared * 1.10 * scaler
+            home_prob_adjusted = home_prob_compared_2 * 1.10
+            away_prob_adjusted = (1.0 - home_prob_adjusted)
         elif (row.is_B2B_Second_Home == 1) & (row.is_B2B_Second_Away == 1):
-            home_prob_compared_2 = home_prob_compared * 1.16 * scaler
+            home_prob_adjusted = home_prob_compared_2 * 1.16
+            away_prob_adjusted = 1.0 - home_prob_adjusted
         elif (row.is_B2B_Second_Home == 0) & (row.is_B2B_Second_Away == 0):
-            home_prob_compared_2 = home_prob_compared * 1.16 * scaler
+            home_prob_adjusted = home_prob_compared_2 * 1.16
+            away_prob_adjusted = (1.0 - home_prob_adjusted)
         else:
             print("There's been a grave mistake")
-
-        # Adjusting home projection to scale to 100%
-        # home_prob_compared_2 = home_prob_compared / (home_prob_compared + away_prob_compared)
-        home_prob_adjusted = home_prob_compared_2 / (home_prob_compared_2 + away_prob_compared) 
-        away_prob_adjusted = 1.0 - home_prob_adjusted                                                                                                      
-
-        # Adjusting for home court advantage/B2B
-        # if (row.is_B2B_Second_Home == 0) & (row.is_B2B_Second_Away == 1):
-        #     home_prob_adjusted = home_prob_compared_2 * 1.26
-        #     away_prob_adjusted = 1.0 - home_prob_adjusted
-        # elif (row.is_B2B_Second_Home == 1) & (row.is_B2B_Second_Away == 0):
-        #     home_prob_adjusted = home_prob_compared_2 * 1.10
-        #     away_prob_adjusted = (1.0 - home_prob_adjusted)
-        # elif (row.is_B2B_Second_Home == 1) & (row.is_B2B_Second_Away == 1):
-        #     home_prob_adjusted = home_prob_compared_2 * 1.16
-        #     away_prob_adjusted = 1.0 - home_prob_adjusted
-        # elif (row.is_B2B_Second_Home == 0) & (row.is_B2B_Second_Away == 0):
-        #     home_prob_adjusted = home_prob_compared_2 * 1.16
-        #     away_prob_adjusted = (1.0 - home_prob_adjusted)
-        # else:
-        #     print("There's been a grave mistake")
         
         # Inputting adjusted win percentage
         todays_games.loc[index, 'Home_Prob_Adjusted'] = home_prob_adjusted
@@ -735,6 +734,8 @@ def calculate_todays_bets(projected_win_pct_table, kelly, capital, save = False)
 
         # Home Kelly Recommendation
         if row.Home_Prob_Diff < 0:
+            todays_games.loc[index, 'Home_Bet_Size'] = 0
+        if row.Home_Prob_Adjusted > 0.95:
             todays_games.loc[index, 'Home_Bet_Size'] = 0
         else:
             p = row.Home_Prob_Adjusted
