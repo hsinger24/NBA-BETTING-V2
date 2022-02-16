@@ -902,7 +902,7 @@ def calculate_yesterdays_bet_results(capital, first_run = False):
         results.reset_index(drop = True, inplace = True)
         results.to_csv('In_Season/Data/results_tracker.csv')
 
-    return yesterday_bets
+    return yesterday_bets, winners
 
 # Functions to calculate external bets and results for
 
@@ -1120,6 +1120,100 @@ def calculate_todays_bets_external(odds, kelly, capital_538, capital_combined, s
 
     return combined
 
+def calculate_yesterdays_bet_results_external(winners, capital_538, capital_combined, first_run = False):
+
+    # Initializing necessary objects
+    yesterday_bets = pd.read_csv('In_Season/Data/todays_bets_external.csv', index_col = 0)  
+
+    # Determining if bet hit and calculating running total of capital
+
+    yesterday_bets['Won_Bet_538'] = -1 
+    yesterday_bets['Won_Bet_Combined'] = -1 
+    yesterday_bets['Capital_538'] = capital_538
+    yesterday_bets['Capital_Combined'] = capital_combined
+    for index, row in yesterday_bets.iterrows():
+        if index == 0:
+            
+            # 538
+            if row.Home_Bet > 0:
+                if row.Home_Team in winners:
+                    yesterday_bets.loc[index, 'Won_Bet_538'] = 1
+                    yesterday_bets.loc[index, 'Capital_538'] = capital_538 + row.Potential_Payoff
+                else:
+                    yesterday_bets.loc[index, 'Won_Bet_538'] = 0
+                    yesterday_bets.loc[index, 'Capital_538'] = capital_538 - row.Home_Bet
+            if row.Away_Bet > 0:
+                if row.Away_Team in winners:
+                    yesterday_bets.loc[index, 'Won_Bet_538'] = 1
+                    yesterday_bets.loc[index, 'Capital_538'] = capital_538 + row.Potential_Payoff
+                else:
+                    yesterday_bets.loc[index, 'Won_Bet_538'] = 0
+                    yesterday_bets.loc[index, 'Capital_538'] = capital_538 - row.Away_Bet
+            
+            # Combined
+            if row.Home_Bet_Combined > 0:
+                if row.Home_Team in winners:
+                    yesterday_bets.loc[index, 'Won_Bet_Combined'] = 1
+                    yesterday_bets.loc[index, 'Capital_Combined'] = capital_combined + row.Potential_Payoff_Combined
+                else:
+                    yesterday_bets.loc[index, 'Won_Bet_Combined'] = 0
+                    yesterday_bets.loc[index, 'Capital_Combined'] = capital_combined - row.Home_Bet_Combined
+            if row.Away_Bet_Combined > 0:
+                if row.Away_Team in winners:
+                    yesterday_bets.loc[index, 'Won_Bet_Combined'] = 1
+                    yesterday_bets.loc[index, 'Capital_Combined'] = capital_combined + row.Potential_Payoff_Combined
+                else:
+                    yesterday_bets.loc[index, 'Won_Bet_Combined'] = 0
+                    yesterday_bets.loc[index, 'Capital_Combined'] = capital_combined - row.Away_Bet_Combined
+        else:
+            
+            # 538
+            if row.Potential_Payoff == 0:
+                yesterday_bets.loc[index, 'Capital_538'] = yesterday_bets.loc[(index - 1), 'Capital_538']
+            if row.Home_Bet > 0:
+                if row.Home_Team in winners:
+                    yesterday_bets.loc[index, 'Won_Bet_538'] = 1
+                    yesterday_bets.loc[index, 'Capital_538'] = yesterday_bets.loc[(index - 1), 'Capital_538'] + row.Potential_Payoff
+                else:
+                    yesterday_bets.loc[index, 'Won_Bet_538'] = 0
+                    yesterday_bets.loc[index, 'Capital_538'] = yesterday_bets.loc[(index - 1), 'Capital_538'] - row.Home_Bet
+            if row.Away_Bet > 0:
+                if row.Away_Team in winners:
+                    yesterday_bets.loc[index, 'Won_Bet_538'] = 1
+                    yesterday_bets.loc[index, 'Capital_538'] = yesterday_bets.loc[(index - 1), 'Capital_538'] + row.Potential_Payoff
+                else:
+                    yesterday_bets.loc[index, 'Won_Bet_538'] = 0
+                    yesterday_bets.loc[index, 'Capital_538'] = yesterday_bets.loc[(index - 1), 'Capital_538'] - row.Away_Bet
+            
+            # Combined
+            if row.Potential_Payoff_Combined == 0:
+                yesterday_bets.loc[index, 'Capital_Combined'] = yesterday_bets.loc[(index - 1), 'Capital_Combined']
+            if row.Home_Bet_Combined > 0:
+                if row.Home_Team in winners:
+                    yesterday_bets.loc[index, 'Won_Bet_Combined'] = 1
+                    yesterday_bets.loc[index, 'Capital_Combined'] = yesterday_bets.loc[(index - 1), 'Capital_Combined'] + row.Potential_Payoff_Combined
+                else:
+                    yesterday_bets.loc[index, 'Won_Bet_Combined'] = 0
+                    yesterday_bets.loc[index, 'Capital_Combined'] = yesterday_bets.loc[(index - 1), 'Capital_Combined'] - row.Home_Bet_Combined
+            if row.Away_Bet_Combined > 0:
+                if row.Away_Team in winners:
+                    yesterday_bets.loc[index, 'Won_Bet_Combined'] = 1
+                    yesterday_bets.loc[index, 'Capital_Combined'] = yesterday_bets.loc[(index - 1), 'Capital_Combined'] + row.Potential_Payoff_Combined
+                else:
+                    yesterday_bets.loc[index, 'Won_Bet_Combined'] = 0
+                    yesterday_bets.loc[index, 'Capital_Combined'] = yesterday_bets.loc[(index - 1), 'Capital_Combined'] - row.Away_Bet_Combined
+        
+        # Saving results
+        if first_run:
+            yesterday_bets.to_csv('In_Season/Data/results_tracker_external.csv')
+        else:
+            results = pd.read_csv('In_Season/Data/results_tracker_external.csv', index_col = 0)
+            results = results.append(yesterday_bets)
+            results.reset_index(drop = True, inplace = True)
+            results.to_csv('In_Season/Data/results_tracker_external.csv')
+            
+        return yesterday_bets
+
 # Function to send email with today's bets
 
 def send_email():
@@ -1172,9 +1266,19 @@ def send_email():
 
 ### Calculating results from yesterday
 
-# results = pd.read_csv('In_Season/Data/results_tracker.csv')
-# yesterday_capital = results.loc[len(results)-1, 'Capital']
-# print(calculate_yesterdays_bet_results(capital = yesterday_capital, first_run = True))
+# Proprietary
+results = pd.read_csv('In_Season/Data/results_tracker.csv')
+yesterday_capital = results.loc[len(results)-1, 'Capital']
+results, winners = calculate_yesterdays_bet_results(capital = yesterday_capital, first_run = True)
+
+# External
+# results = pd.read_csv('In_Season/Data/results_tracker_external.csv')
+# capital_538 = results.loc[len(results)-1, 'Capital_538']
+# capital_combined = results.loc[len(results)-1, 'Capital_Combined']
+capital_combined = 100000
+capital_538 = 100000
+results = calculate_yesterdays_bet_results_external(winners = winners, capital_538 = capital_538,
+                                capital_combined = capital_combined, first_run = True)
 
 ### Calculate todays bets
 
@@ -1189,4 +1293,8 @@ print(missed_players)
 send_email()
 
 # External
-calculate_todays_bets_external(odds = odds, kelly = kelly, capital_538 = 100000, capital_combined = 100000, save = True)
+
+results = pd.read_csv('In_Season/Data/results_tracker_external.csv')
+capital_538 = results.loc[len(results)-1, 'Capital_538']
+capital_combined = results.loc[len(results)-1, 'Capital_Combined']
+calculate_todays_bets_external(odds = odds, kelly = kelly, capital_538 = capital_538, capital_combined = capital_combined, save = True)
