@@ -671,7 +671,7 @@ def calculate_todays_bets(projected_win_pct_table, kelly, capital, save = False)
         home_prob_compared = row.Home_Prob_Naive * (1 - row.Away_Prob_Naive) 
         away_prob_compared = row.Away_Prob_Naive * (1 - row.Home_Prob_Naive)
 
-        # # Creating a scaler for adjustment
+        # Creating a scaler for adjustment
         # scaler = 1.0/(home_prob_compared + away_prob_compared)
 
         # # Adjusting for home court advantage/B2B
@@ -906,7 +906,219 @@ def calculate_yesterdays_bet_results(capital, first_run = False):
 
 # Functions to calculate external bets and results for
 
+def calculate_todays_bets_external(odds, kelly, capital_538, capital_combined, save = False):
 
+    # Map for 538 scraping
+    fivethirtyeight_team_map =  {
+        'Pistons' : 'Detroit Pistons',
+        'Thunder' : 'Oklahoma City Thunder',
+        'Kings' : 'Sacramento Kings',
+        'Trail Blazers' : 'Portland Trailblazers',
+        'Spurs' : 'San Antonio Spurs',
+        'Raptors' : 'Toronto Raptors',
+        'Rockets' : 'Houston Rockets',
+        'Magic' : 'Orlando Magic',
+        'Warriors' : 'Golden State Warriors',
+        'Celtics' : 'Boston Celtics',
+        'Cavaliers' : 'Cleveland Cavaliers',
+        'Mavericks' : 'Dallas Mavericks',
+        'Hornets' : 'Charlotte Hornets',
+        'Pacers' : 'Indiana Pacers',
+        'Grizzlies' : 'Memphis Grizzlies',
+        'Wizards' : 'Washington Wizards',
+        'Knicks' : 'New York Knicks',
+        'Nets' : 'Brooklyn Nets',
+        'Bucks' : 'Milwaukee Bucks',
+        'Bulls' : 'Chicago Bulls',
+        'Pelicans' : 'New Orleans Pelicans',
+        'Jazz' : 'Utah Jazz',
+        'Nuggets' : 'Denver Nuggets',
+        'Clippers' : 'Los Angeles Clippers',
+        'Lakers' : 'Los Angeles Lakers',
+        '76ers' : 'Philadelphia 76ers',
+        'Hawks' : 'Atlanta Hawks',
+        'Heat' : 'Miami Heat',
+        'Timberwolves' : 'Minnesota Timberwolves',
+        'Suns' : 'Phoenix Suns'
+    }
+
+    # Scraping data from 538
+    tables = pd.read_html(f'https://projects.fivethirtyeight.com/{current_year}-nba-predictions/games/')
+    fivethirtyeight_data = pd.DataFrame(columns = ['Date', 'Away_Team', 'Away_Prob', 'Home_Team', 'Home_Prob'])
+    for i, table in enumerate(tables):
+        if i == 0:
+            continue
+        if i > 30:
+            break
+        if i % 2 == 0:
+            matchup_data = table.iloc[:, [2,4]]
+            matchup_data.drop(2, axis = 0, inplace = True)
+            matchup_data.columns = ['Teams', 'Probability']
+            away_team = matchup_data.loc[0, 'Teams']
+            away_prob = matchup_data.loc[0, 'Probability']
+            home_team = matchup_data.loc[1, 'Teams']
+            home_prob = matchup_data.loc[1, 'Probability']
+            date = dt.date.today()
+            data_series = pd.Series([date, away_team, away_prob, home_team, home_prob], index = fivethirtyeight_data.columns)
+            fivethirtyeight_data = fivethirtyeight_data.append(data_series, ignore_index = True)
+
+    # Changing team names using team map
+    fivethirtyeight_data['Home_Team'] = fivethirtyeight_data.Home_Team.apply(lambda x: fivethirtyeight_team_map[x])
+    fivethirtyeight_data['Away_Team'] = fivethirtyeight_data.Away_Team.apply(lambda x: fivethirtyeight_team_map[x])
+
+
+
+    # Merging dfs and adjusting column names
+    merged = pd.merge(fivethirtyeight_data, odds, on = ['Home_Team', 'Away_Team'])
+    merged.columns = ['Date', 'Away_Team', 'Away_Prob', 'Home_Team', 'Home_Prob', 'Home_Odds', 'Away_Odds', 
+                    'Home_Prob_Implied', 'Away_Prob_Implied']
+
+    # Formatting columns
+    merged['Away_Prob'] = merged.Away_Prob.str.strip('%')
+    merged['Away_Prob'] = merged.Away_Prob.astype(float)
+    merged['Away_Prob'] = merged.Away_Prob/100
+    merged['Home_Prob'] = merged.Home_Prob.str.strip('%')
+    merged['Home_Prob'] = merged.Home_Prob.astype(float)
+    merged['Home_Prob'] = merged.Home_Prob/100
+    merged['Home_Prob_Implied'] = merged.Home_Prob_Implied/100
+    merged['Away_Prob_Implied'] = merged.Away_Prob_Implied/100
+
+    # Creating columns for bet size and potential payoff
+    merged['Home_Prob_Diff'] = merged.Home_Prob - merged.Home_Prob_Implied
+    merged['Away_Prob_Diff'] = merged.Away_Prob - merged.Away_Prob_Implied
+    merged['Home_Bet_Size'] = 0
+    merged['Away_Bet_Size'] = 0
+
+    # Calculating 538 bets and payoffs
+    for index, row in merged.iterrows():
+
+        # Home Kelly Recommendation
+        if row.Home_Prob_Diff < 0:
+            merged.loc[index, 'Home_Bet_Size'] = 0
+        else:
+            p = row.Home_Prob
+            q = 1.0 - p
+            ml = row.Home_Odds
+            if ml>=0:
+                b = (ml/100)
+            if ml<0:
+                b = (100/abs(ml))
+            kc = ((p*b) - q) / b
+            bet = kc/kelly
+            merged.loc[index, 'Home_Bet_Size'] = bet
+
+        # Away Kelly Recommendation
+        if row.Away_Prob_Diff < 0:
+            merged.loc[index, 'Away_Bet_Size'] = 0
+        else:
+            p = row.Away_Prob
+            q = 1.0 - p
+            ml = row.Away_Odds
+            if ml>=0:
+                b = (ml/100)
+            if ml<0:
+                b = (100/abs(ml))
+            kc = ((p*b) - q) / b
+            bet = kc/kelly
+            merged.loc[index, 'Away_Bet_Size'] = bet
+
+    # Creating bet columns
+    merged['Home_Bet'] = merged.Home_Bet_Size * capital_538
+    merged['Away_Bet'] = merged.Away_Bet_Size * capital_538
+
+    # Creating Payoff column
+    merged['Potential_Payoff'] = 0
+    for index, row in merged.iterrows():
+        if row.Home_Bet > 0:
+            if row.Home_Odds < 0:
+                merged.loc[index, 'Potential_Payoff'] = (row.Home_Bet/abs(row.Home_Odds))*100
+            if row.Home_Odds > 0:
+                merged.loc[index, 'Potential_Payoff'] = row.Home_Bet * (row.Home_Odds/100)
+        if row.Away_Bet > 0:
+            if row.Away_Odds < 0:
+                merged.loc[index, 'Potential_Payoff'] = (row.Away_Bet/abs(row.Away_Odds))*100
+            if row.Away_Odds > 0:
+                merged.loc[index, 'Potential_Payoff'] = row.Away_Bet * (row.Away_Odds/100)
+
+
+
+
+
+
+    # Calling in todays bets and diluting to necessary columns
+    bets = pd.read_csv('In_Season/Data/todays_bets.csv', index_col = 0)
+    bets = bets[['Away', 'Home', 'Home_Prob_Adjusted', 'Away_Prob_Adjusted']]
+    bets.columns = ['Away_Team', 'Home_Team', 'Home_Prob_Adjusted', 'Away_Prob_Adjusted']
+
+    # Merging and creating combined probs
+    combined = pd.merge(merged, bets, on = ['Home_Team', 'Away_Team'])
+    combined['Home_Prob_Combined'] = (combined.Home_Prob + combined.Home_Prob_Adjusted)/2
+    combined['Away_Prob_Combined'] = (combined.Away_Prob + combined.Away_Prob_Adjusted)/2
+
+    # Creating columns for bet recommendation
+    combined['Home_Prob_Diff_Combined'] = combined.Home_Prob_Combined - combined.Home_Prob_Implied
+    combined['Away_Prob_Diff_Combined'] = combined.Away_Prob_Combined - combined.Away_Prob_Implied
+    combined['Home_Bet_Size_Combined'] = 0
+    combined['Away_Bet_Size_Combined'] = 0
+
+    # Calculating combined bets and payoffs
+    for index, row in combined.iterrows():
+
+        # Home Kelly Recommendation
+        if row.Home_Prob_Diff_Combined < 0:
+            combined.loc[index, 'Home_Bet_Size_Combined'] = 0
+        else:
+            p = row.Home_Prob_Combined
+            q = 1.0 - p
+            ml = row.Home_Odds
+            if ml>=0:
+                b = (ml/100)
+            if ml<0:
+                b = (100/abs(ml))
+            kc = ((p*b) - q) / b
+            bet = kc/kelly
+            combined.loc[index, 'Home_Bet_Size_Combined'] = bet
+
+        # Away Kelly Recommendation
+        if row.Away_Prob_Diff_Combined < 0:
+            combined.loc[index, 'Away_Bet_Size_Combined'] = 0
+        else:
+            p = row.Away_Prob_Combined
+            q = 1.0 - p
+            ml = row.Away_Odds
+            if ml>=0:
+                b = (ml/100)
+            if ml<0:
+                b = (100/abs(ml))
+            kc = ((p*b) - q) / b
+            bet = kc/kelly
+            combined.loc[index, 'Away_Bet_Size_Combined'] = bet
+
+    # Creating bet columns
+    combined['Home_Bet_Combined'] = combined.Home_Bet_Size_Combined * capital_combined
+    combined['Away_Bet_Combined'] = combined.Away_Bet_Size_Combined * capital_combined
+
+    # Creating Payoff column
+    combined['Potential_Payoff_Combined'] = 0
+    for index, row in combined.iterrows():
+        if row.Home_Bet_Combined > 0:
+            if row.Home_Odds < 0:
+                combined.loc[index, 'Potential_Payoff_Combined'] = (row.Home_Bet_Combined/abs(row.Home_Odds))*100
+            if row.Home_Odds > 0:
+                combined.loc[index, 'Potential_Payoff_Combined'] = row.Home_Bet_Combined * (row.Home_Odds/100)
+        if row.Away_Bet_Combined > 0:
+            if row.Away_Odds < 0:
+                combined.loc[index, 'Potential_Payoff_Combined'] = (row.Away_Bet_Combined/abs(row.Away_Odds))*100
+            if row.Away_Odds > 0:
+                combined.loc[index, 'Potential_Payoff_Combined'] = row.Away_Bet_Combined * (row.Away_Odds/100)
+
+    # Saving output
+    if save:
+        file_name = 'In_Season/Data/todays_bets_external'
+        file_name.to_csv(file_name)
+
+
+    return combined
 
 # Function to send email with today's bets
 
@@ -958,14 +1170,15 @@ def send_email():
 
 ##########RUN################
 
-# Calculating results from yesterday
+### Calculating results from yesterday
 
 results = pd.read_csv('In_Season/Data/results_tracker.csv')
 yesterday_capital = results.loc[len(results)-1, 'Capital']
 print(calculate_yesterdays_bet_results(capital = yesterday_capital, first_run = False))
 
-# Calculate todays bets
+### Calculate todays bets
 
+# Proprietary
 results = pd.read_csv('In_Season/Data/results_tracker.csv')
 today_capital = results.loc[len(results)-1, 'Capital']
 team_vorp_df, missed_players, frac_season = calculate_current_day_team_vorp(current_year)
@@ -974,3 +1187,6 @@ bets, odds = calculate_todays_bets(projected_win_pct_table, kelly, capital = tod
 print(bets)
 print(missed_players)
 send_email()
+
+# External
+calculate_todays_bets_external(odds = odds, kelly = kelly, capital = 100000, save = True)
