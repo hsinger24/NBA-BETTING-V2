@@ -516,6 +516,7 @@ def calculate_current_day_team_vorp(current_year):
     table = table[table.Team != 'Tm']
     table = table[table.Team != 'TOT']
     table['VORP'] = table.VORP.apply(pd.to_numeric)
+    table['Games'] = table.Games.apply(pd.to_numeric)
     table = table.groupby(['Player']).agg({'Games' : 'sum', 'VORP' : 'sum'})
     table = pd.DataFrame(table)
     table.reset_index(drop = False, inplace = True)
@@ -1267,18 +1268,16 @@ def send_email():
 ### Calculating results from yesterday
 
 # Proprietary
-results = pd.read_csv('In_Season/Data/results_tracker.csv')
-yesterday_capital = results.loc[len(results)-1, 'Capital']
-results, winners = calculate_yesterdays_bet_results(capital = yesterday_capital, first_run = True)
+# results = pd.read_csv('In_Season/Data/results_tracker.csv')
+# yesterday_capital = results.loc[len(results)-1, 'Capital']
+# results, winners = calculate_yesterdays_bet_results(capital = yesterday_capital, first_run = False)
 
 # External
 # results = pd.read_csv('In_Season/Data/results_tracker_external.csv')
 # capital_538 = results.loc[len(results)-1, 'Capital_538']
 # capital_combined = results.loc[len(results)-1, 'Capital_Combined']
-capital_combined = 100000
-capital_538 = 100000
-results = calculate_yesterdays_bet_results_external(winners = winners, capital_538 = capital_538,
-                                capital_combined = capital_combined, first_run = True)
+# results = calculate_yesterdays_bet_results_external(winners = winners, capital_538 = capital_538,
+#                                 capital_combined = capital_combined, first_run = True)
 
 ### Calculate todays bets
 
