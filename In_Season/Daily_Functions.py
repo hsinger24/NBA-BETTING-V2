@@ -1265,25 +1265,35 @@ def send_email():
 
 ##########RUN################
 
-### Calculating results from yesterday
+##### Calculating results from yesterday
+
+#Proprietary
+try:
+    results = pd.read_csv('In_Season/Data/results_tracker.csv')
+    yesterday_capital = results.loc[len(results)-1, 'Capital']
+except:
+    yesterday_capital = 100000
+results, winners = calculate_yesterdays_bet_results(capital = yesterday_capital, first_run = True)
+
+#External
+try:
+    results = pd.read_csv('In_Season/Data/results_tracker_external.csv')
+    capital_538 = results.loc[len(results)-1, 'Capital_538']
+    capital_combined = results.loc[len(results)-1, 'Capital_Combined']
+except:
+    capital_538 = 100000
+    capital_combined = 100000
+results = calculate_yesterdays_bet_results_external(winners = winners, capital_538 = capital_538,
+                                capital_combined = capital_combined, first_run = True)
+
+##### Calculate todays bets
 
 # Proprietary
-# results = pd.read_csv('In_Season/Data/results_tracker.csv')
-# yesterday_capital = results.loc[len(results)-1, 'Capital']
-# results, winners = calculate_yesterdays_bet_results(capital = yesterday_capital, first_run = False)
-
-# External
-# results = pd.read_csv('In_Season/Data/results_tracker_external.csv')
-# capital_538 = results.loc[len(results)-1, 'Capital_538']
-# capital_combined = results.loc[len(results)-1, 'Capital_Combined']
-# results = calculate_yesterdays_bet_results_external(winners = winners, capital_538 = capital_538,
-#                                 capital_combined = capital_combined, first_run = True)
-
-### Calculate todays bets
-
-# Proprietary
-results = pd.read_csv('In_Season/Data/results_tracker.csv')
-today_capital = results.loc[len(results)-1, 'Capital']
+try:
+    results = pd.read_csv('In_Season/Data/results_tracker.csv')
+    today_capital = results.loc[len(results)-1, 'Capital']
+except:
+    today_capital = 100000
 team_vorp_df, missed_players, frac_season = calculate_current_day_team_vorp(current_year)
 projected_win_pct_table = calculate_current_day_win_pct(team_vorp_df, frac_season)
 bets, odds = calculate_todays_bets(projected_win_pct_table, kelly, capital = today_capital, save = True)
@@ -1293,7 +1303,11 @@ send_email()
 
 # External
 
-results = pd.read_csv('In_Season/Data/results_tracker_external.csv')
-capital_538 = results.loc[len(results)-1, 'Capital_538']
-capital_combined = results.loc[len(results)-1, 'Capital_Combined']
+try:
+    results = pd.read_csv('In_Season/Data/results_tracker_external.csv')
+    capital_538 = results.loc[len(results)-1, 'Capital_538']
+    capital_combined = results.loc[len(results)-1, 'Capital_Combined']
+except:
+    capital_538 = 100000
+    capital_combined = 100000
 calculate_todays_bets_external(odds = odds, kelly = kelly, capital_538 = capital_538, capital_combined = capital_combined, save = True)
