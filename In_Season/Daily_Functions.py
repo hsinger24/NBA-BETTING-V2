@@ -1267,24 +1267,28 @@ def send_email():
 
 ##### Calculating results from yesterday
 
+first_run = False
+
 #Proprietary
-try:
+if not first_run:
     results = pd.read_csv('In_Season/Data/results_tracker.csv')
     yesterday_capital = results.loc[len(results)-1, 'Capital']
-except:
+else:
     yesterday_capital = 100000
-results, winners = calculate_yesterdays_bet_results(capital = yesterday_capital, first_run = True)
+
+results, winners = calculate_yesterdays_bet_results(capital = yesterday_capital, first_run = first_run)
 
 #External
-try:
+if not first_run:
     results = pd.read_csv('In_Season/Data/results_tracker_external.csv')
     capital_538 = results.loc[len(results)-1, 'Capital_538']
     capital_combined = results.loc[len(results)-1, 'Capital_Combined']
-except:
+else:
     capital_538 = 100000
     capital_combined = 100000
+
 results = calculate_yesterdays_bet_results_external(winners = winners, capital_538 = capital_538,
-                                capital_combined = capital_combined, first_run = True)
+                                capital_combined = capital_combined, first_run = first_run)
 
 ##### Calculate todays bets
 
