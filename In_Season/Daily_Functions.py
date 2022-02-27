@@ -1169,7 +1169,7 @@ def calculate_yesterdays_bet_results_external(winners, capital_538, capital_comb
         else:
             
             # 538
-            if row.Potential_Payoffz == 0:
+            if row.Potential_Payoff == 0:
                 yesterday_bets.loc[index, 'Capital_538'] = yesterday_bets.loc[(index - 1), 'Capital_538']
             if row.Home_Bet > 0:
                 if row.Home_Team in winners:
