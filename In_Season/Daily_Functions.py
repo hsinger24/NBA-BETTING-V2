@@ -736,7 +736,7 @@ def calculate_todays_bets(projected_win_pct_table, kelly, capital, save = False)
         # Home Kelly Recommendation
         if row.Home_Prob_Diff < 0:
             todays_games.loc[index, 'Home_Bet_Size'] = 0
-        elif row.Home_Prob_Adjusted > 0.95:
+        elif (row.Home_Prob_Adjusted > 0.95) & (row.Home_Odds < -750):
             todays_games.loc[index, 'Home_Bet_Size'] = 0
         else:
             p = row.Home_Prob_Adjusted
@@ -1169,7 +1169,7 @@ def calculate_yesterdays_bet_results_external(winners, capital_538, capital_comb
         else:
             
             # 538
-            if row.Potential_Payoff == 0:
+            if row.Potential_Payoffz == 0:
                 yesterday_bets.loc[index, 'Capital_538'] = yesterday_bets.loc[(index - 1), 'Capital_538']
             if row.Home_Bet > 0:
                 if row.Home_Team in winners:
@@ -1204,16 +1204,16 @@ def calculate_yesterdays_bet_results_external(winners, capital_538, capital_comb
                     yesterday_bets.loc[index, 'Won_Bet_Combined'] = 0
                     yesterday_bets.loc[index, 'Capital_Combined'] = yesterday_bets.loc[(index - 1), 'Capital_Combined'] - row.Away_Bet_Combined
         
-        # Saving results
-        if first_run:
-            yesterday_bets.to_csv('In_Season/Data/results_tracker_external.csv')
-        else:
-            results = pd.read_csv('In_Season/Data/results_tracker_external.csv', index_col = 0)
-            results = results.append(yesterday_bets)
-            results.reset_index(drop = True, inplace = True)
-            results.to_csv('In_Season/Data/results_tracker_external.csv')
-            
-        return yesterday_bets
+    # Saving results
+    if first_run:
+        yesterday_bets.to_csv('In_Season/Data/results_tracker_external.csv')
+    else:
+        results = pd.read_csv('In_Season/Data/results_tracker_external.csv', index_col = 0)
+        results = results.append(yesterday_bets)
+        results.reset_index(drop = True, inplace = True)
+        results.to_csv('In_Season/Data/results_tracker_external.csv')
+        
+    return yesterday_bets
 
 # Function to send email with today's bets
 
@@ -1263,6 +1263,52 @@ def send_email():
 
     return
 
+def send_email_external():
+    subject = "Today's recommended NBA bets external"
+    body = "Attached are the recommended external bets for today"
+    sender_email = "henrysinger24@gmail.com"
+    receiver_email = "henrysinger24@gmail.com"
+    password = 'Tennessee24'
+
+    # Create a multipart message and set headers
+    message = MIMEMultipart()
+    message["From"] = sender_email
+    message["To"] = receiver_email
+    message["Subject"] = subject
+
+    # Add body to email
+    message.attach(MIMEText(body, "plain"))
+
+    filename = 'In_Season/Data/todays_bets_external.csv'  # In same directory as script
+
+    # Open PDF file in binary mode
+    with open(filename, "rb") as attachment:
+        # Add file as application/octet-stream
+        # Email client can usually download this automatically as attachment
+        part = MIMEBase("application", "octet-stream")
+        part.set_payload(attachment.read())
+
+    # Encode file in ASCII characters to send by email    
+    encoders.encode_base64(part)
+
+    # Add header as key/value pair to attachment part
+    part.add_header(
+        "Content-Disposition",
+        f"attachment; filename= {filename}",
+    )
+
+    # Add attachment to message and convert message to string
+    message.attach(part)
+    text = message.as_string()
+
+    # Log in to server using secure context and send email
+    context = ssl.create_default_context()
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
+        server.login(sender_email, password)
+        server.sendmail(sender_email, receiver_email, text)
+
+    return
+
 ##########RUN################
 
 ##### Calculating results from yesterday
@@ -1279,6 +1325,7 @@ else:
 results, winners = calculate_yesterdays_bet_results(capital = yesterday_capital, first_run = first_run)
 
 #External
+first_run = True
 if not first_run:
     results = pd.read_csv('In_Season/Data/results_tracker_external.csv')
     capital_538 = results.loc[len(results)-1, 'Capital_538']
