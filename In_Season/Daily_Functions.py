@@ -719,10 +719,16 @@ def calculate_todays_bets(projected_win_pct_table, kelly, capital, save = False)
     for index, row in todays_games.iterrows():
         home_team = row.Home
         away_team = row.Away
-        todays_games.loc[index, 'Home_Prob_Odds'] = todays_odds[todays_odds.Home_Team == home_team]['Home_Prob'].iloc[0]/100.0
-        todays_games.loc[index, 'Away_Prob_Odds'] = todays_odds[todays_odds.Away_Team == away_team]['Away_Prob'].iloc[0]/100.0
-        todays_games.loc[index, 'Home_Odds'] = todays_odds[todays_odds.Home_Team == home_team]['Home_Odds'].iloc[0]
-        todays_games.loc[index, 'Away_Odds'] = todays_odds[todays_odds.Home_Team == home_team]['Away_Odds'].iloc[0]
+        try:
+            todays_games.loc[index, 'Home_Prob_Odds'] = todays_odds[todays_odds.Home_Team == home_team]['Home_Prob'].iloc[0]/100.0
+            todays_games.loc[index, 'Away_Prob_Odds'] = todays_odds[todays_odds.Away_Team == away_team]['Away_Prob'].iloc[0]/100.0
+            todays_games.loc[index, 'Home_Odds'] = todays_odds[todays_odds.Home_Team == home_team]['Home_Odds'].iloc[0]
+            todays_games.loc[index, 'Away_Odds'] = todays_odds[todays_odds.Home_Team == home_team]['Away_Odds'].iloc[0]
+        except:
+            continue
+    
+    # Deleting columns where there are no odds
+    todays_games = todays_games[(todays_games.Home_Prob_Odds != 0) & ((todays_games.Away_Prob_Odds != 0))]
 
     # Creating columns to feed into kelly formula
     todays_games['Home_Prob_Diff'] = todays_games.Home_Prob_Adjusted - todays_games.Home_Prob_Odds
@@ -1325,7 +1331,6 @@ else:
 results, winners = calculate_yesterdays_bet_results(capital = yesterday_capital, first_run = first_run)
 
 #External
-first_run = True
 if not first_run:
     results = pd.read_csv('In_Season/Data/results_tracker_external.csv')
     capital_538 = results.loc[len(results)-1, 'Capital_538']
@@ -1348,7 +1353,6 @@ except:
 team_vorp_df, missed_players, frac_season = calculate_current_day_team_vorp(current_year)
 projected_win_pct_table = calculate_current_day_win_pct(team_vorp_df, frac_season)
 bets, odds = calculate_todays_bets(projected_win_pct_table, kelly, capital = today_capital, save = True)
-print(bets)
 print(missed_players)
 send_email()
 
@@ -1362,3 +1366,4 @@ except:
     capital_538 = 100000
     capital_combined = 100000
 calculate_todays_bets_external(odds = odds, kelly = kelly, capital_538 = capital_538, capital_combined = capital_combined, save = True)
+send_email_external()
