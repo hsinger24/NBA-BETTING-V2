@@ -361,24 +361,17 @@ def retreive_odds():
         
         # Retreiving odds
         ml_string = row['Unnamed: 5']
-        if len(ml_string) == 12:
-            ml_string = ml_string.replace('ML', '')
+        if len(ml_string) == 8:
             ml_away = ml_string[:4]
             ml_home = ml_string[-4:]
-        if len(ml_string) == 13:
-            ml_string = ml_string.replace('ML', '')
+        if len(ml_string) == 9:
             if (ml_string[4] == '+') | (ml_string[4]=='-'):
                 ml_away = ml_string[:4]
                 ml_home = ml_string[-5:]
             else:
                 ml_away = ml_string[:5]
                 ml_home = ml_string[-4:]
-        if len(ml_string) == 14:
-            ml_string = ml_string.replace('ML', '')
-            if (ml_string[5] == '+') | (ml_string[5]=='-'):
-                ml_away = ml_string[:5]
-                ml_home = ml_string[-5:]
-            else:
+        if len(ml_string) == 10:
                 ml_away = ml_string[:5]
                 ml_home = ml_string[-5:]
         try:
@@ -1319,28 +1312,28 @@ def send_email_external():
 
 ##### Calculating results from yesterday
 
-first_run = False
+# first_run = False
 
-#Proprietary
-if not first_run:
-    results = pd.read_csv('In_Season/Data/results_tracker.csv')
-    yesterday_capital = results.loc[len(results)-1, 'Capital']
-else:
-    yesterday_capital = 100000
+# #Proprietary
+# if not first_run:
+#     results = pd.read_csv('In_Season/Data/results_tracker.csv')
+#     yesterday_capital = results.loc[len(results)-1, 'Capital']
+# else:
+#     yesterday_capital = 100000
 
-results, winners = calculate_yesterdays_bet_results(capital = yesterday_capital, first_run = first_run)
+# results, winners = calculate_yesterdays_bet_results(capital = yesterday_capital, first_run = first_run)
 
-#External
-if not first_run:
-    results = pd.read_csv('In_Season/Data/results_tracker_external.csv')
-    capital_538 = results.loc[len(results)-1, 'Capital_538']
-    capital_combined = results.loc[len(results)-1, 'Capital_Combined']
-else:
-    capital_538 = 100000
-    capital_combined = 100000
+# #External
+# if not first_run:
+#     results = pd.read_csv('In_Season/Data/results_tracker_external.csv')
+#     capital_538 = results.loc[len(results)-1, 'Capital_538']
+#     capital_combined = results.loc[len(results)-1, 'Capital_Combined']
+# else:
+#     capital_538 = 100000
+#     capital_combined = 100000
 
-results = calculate_yesterdays_bet_results_external(winners = winners, capital_538 = capital_538,
-                                capital_combined = capital_combined, first_run = first_run)
+# results = calculate_yesterdays_bet_results_external(winners = winners, capital_538 = capital_538,
+#                                 capital_combined = capital_combined, first_run = first_run)
 
 ##### Calculate todays bets
 
